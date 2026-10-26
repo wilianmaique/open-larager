@@ -25,6 +25,7 @@ import {
   ServiceIcon,
   Status,
 } from './components';
+import { Checkbox, NumberInput, Select } from './controls';
 import { call, packages } from './api';
 import { descriptionKeys, useApp } from './state';
 import { services } from './serviceRegistry';
@@ -197,21 +198,19 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                 {t('chooseVersion')}
               </label>
               <div className="install-select">
-                <select
+                <Select
                   id="install-version"
                   value={installVersion}
                   disabled={busy}
-                  onChange={(e) => setInstallVersion(e.target.value)}
-                >
-                  {available.map((pkg) => (
-                    <option key={pkg.version} value={pkg.version}>
-                      {pkg.version}
-                      {config.installations.some((p) => p.version === pkg.version)
-                        ? ` · ${t('installed')}`
-                        : ''}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setInstallVersion}
+                  options={available.map((pkg) => ({
+                    value: pkg.version,
+                    label: pkg.version,
+                    description: config.installations.some((p) => p.version === pkg.version)
+                      ? t('installed')
+                      : undefined,
+                  }))}
+                />
                 <Button
                   variant="primary"
                   disabled={busy || alreadyInstalled || !selectedPackage}
@@ -267,50 +266,48 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                 <label className="field-label" htmlFor="active-version">
                   {t('activeVersion')}
                 </label>
-                <select
+                <Select
                   id="active-version"
                   value={activeVersion}
-                  onChange={(e) => setActiveVersion(e.target.value)}
+                  onValueChange={setActiveVersion}
                   disabled={busy || status.status === 'running' || !config.installations.length}
-                >
-                  {!config.installations.length && (
-                    <option value="">{t('noInstalledVersions')}</option>
-                  )}
-                  {config.installations.map((pkg) => (
-                    <option key={pkg.version}>{pkg.version}</option>
-                  ))}
-                </select>
+                  placeholder={t('noInstalledVersions')}
+                  options={config.installations.map((pkg) => ({
+                    value: pkg.version,
+                    label: pkg.version,
+                  }))}
+                />
                 <div className="ports-form">
                   {ports.map((port, index) => (
-                    <label key={index}>
-                      <span className="field-label">{t(portLabels[index])}</span>
-                      <input
-                        aria-label={t(portLabels[index])}
-                        type="number"
-                        min="1"
-                        max="65535"
+                    <div key={index}>
+                      <label className="field-label" htmlFor={`${id}-port-${index}`}>
+                        {t(portLabels[index])}
+                      </label>
+                      <NumberInput
+                        id={`${id}-port-${index}`}
+                        label={t(portLabels[index])}
+                        min={1}
+                        max={65535}
                         required
                         value={port}
-                        onChange={(e) =>
+                        onValueChange={(value) =>
                           setPorts((current) =>
-                            current.map((old, i) => (i === index ? e.target.value : old)),
+                            current.map((old, i) => (i === index ? value : old)),
                           )
                         }
                         disabled={busy || status.status === 'running'}
                       />
-                    </label>
+                    </div>
                   ))}
                 </div>
                 <p className="field-help">{t('portHelp')}</p>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={autoStart}
-                    onChange={(e) => setAutoStart(e.target.checked)}
-                    disabled={busy || status.status === 'running'}
-                  />
-                  <span>{t('autoStart')}</span>
-                </label>
+                <Checkbox
+                  checked={autoStart}
+                  onChange={(e) => setAutoStart(e.target.checked)}
+                  disabled={busy || status.status === 'running'}
+                >
+                  {t('autoStart')}
+                </Checkbox>
                 <Button type="submit" disabled={busy || status.status === 'running'}>
                   <Save size={14} />
                   {t('save')}

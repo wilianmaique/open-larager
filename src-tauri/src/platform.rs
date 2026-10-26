@@ -243,13 +243,11 @@ fn decode_output(bytes: &[u8], encoding: TextEncoding) -> Result<String> {
         TextEncoding::Utf8 => Ok(String::from_utf8_lossy(bytes).into_owned()),
         TextEncoding::Utf16Le => {
             let bytes = bytes.strip_prefix(&[0xff, 0xfe]).unwrap_or(bytes);
-            if !bytes.len().is_multiple_of(2) {
+            let (pairs, remainder) = bytes.as_chunks::<2>();
+            if !remainder.is_empty() {
                 return Err(invalid("Command returned incomplete UTF-16LE output"));
             }
-            let units: Vec<u16> = bytes
-                .chunks_exact(2)
-                .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
-                .collect();
+            let units: Vec<u16> = pairs.iter().copied().map(u16::from_le_bytes).collect();
             String::from_utf16(&units)
                 .map_err(|_| invalid("Command returned invalid UTF-16LE output"))
         }

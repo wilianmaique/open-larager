@@ -64,6 +64,8 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
 
+No CI, `PLAYWRIGHT_PREVIEW=1` faz o Playwright testar a interface compilada em `dist/`, pela porta 1421. O editor Monaco deve continuar sendo carregado apenas ao abrir a configuração de um serviço.
+
 Os testes reais são separados porque baixam aproximadamente 1 GB de distribuições e inicializam bancos em um diretório temporário:
 
 ```powershell

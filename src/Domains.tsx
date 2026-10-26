@@ -18,6 +18,7 @@ import {
   Waypoints,
 } from 'lucide-react';
 import { Button, Dialog, DialogHeader, Empty, IconButton, ServiceIcon, Status } from './components';
+import { Checkbox, NumberInput, RadioCard, Switch } from './controls';
 import { call } from './api';
 import { useApp } from './state';
 import type { Site } from './types';
@@ -175,21 +176,18 @@ export function Domains() {
                         : 'proxySite',
                   )}
                 </span>
-                <label className="switch" title={t('enabled')}>
-                  <input
-                    type="checkbox"
-                    aria-label={`${t('enabled')} ${site.hostname}`}
-                    checked={site.enabled}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void run(
-                        () => call('save_site', { site: { ...site, enabled: e.target.checked } }),
-                        t('saved'),
-                      )
-                    }
-                  />
-                  <span />
-                </label>
+                <Switch
+                  title={t('enabled')}
+                  aria-label={`${t('enabled')} ${site.hostname}`}
+                  checked={site.enabled}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void run(
+                      () => call('save_site', { site: { ...site, enabled: e.target.checked } }),
+                      t('saved'),
+                    )
+                  }
+                />
                 <IconButton
                   label={`${t('edit')} ${site.hostname}`}
                   onClick={() => setEditing(site)}
@@ -291,31 +289,38 @@ function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
                   { value: 'proxy', label: 'proxySite', Icon: Waypoints },
                 ] as const
               ).map(({ value, label, Icon }) => (
-                <label key={value} className={form.mode === value ? 'selected' : ''}>
-                  <input
-                    type="radio"
-                    name="site-mode"
-                    checked={form.mode === value}
-                    onChange={() => update('mode', value)}
-                  />
+                <RadioCard
+                  key={value}
+                  name="site-mode"
+                  value={value}
+                  checked={form.mode === value}
+                  disabled={busy}
+                  onChange={() => update('mode', value)}
+                >
                   <Icon size={21} />
                   <span>{t(label)}</span>
-                </label>
+                </RadioCard>
               ))}
             </div>
           </fieldset>
           {form.mode === 'proxy' ? (
-            <label className="field-label">
-              {t('upstreamPort')}
-              <input
-                type="number"
-                min="1"
-                max="65535"
+            <>
+              <label className="field-label" htmlFor="site-port">
+                {t('upstreamPort')}
+              </label>
+              <NumberInput
+                id="site-port"
+                label={t('upstreamPort')}
+                min={1}
+                max={65535}
                 required
                 value={form.upstreamPort ?? ''}
-                onChange={(e) => update('upstreamPort', Number(e.target.value))}
+                disabled={busy}
+                onValueChange={(value) =>
+                  update('upstreamPort', value === '' ? null : Number(value))
+                }
               />
-            </label>
+            </>
           ) : (
             <>
               <label className="field-label" htmlFor="site-root">
@@ -346,14 +351,13 @@ function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
               <p className="field-help">{t('folderHelp')}</p>
             </>
           )}
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={form.enabled}
-              onChange={(e) => update('enabled', e.target.checked)}
-            />
-            <span>{t('enabled')}</span>
-          </label>
+          <Checkbox
+            checked={form.enabled}
+            disabled={busy}
+            onChange={(e) => update('enabled', e.target.checked)}
+          >
+            {t('enabled')}
+          </Checkbox>
         </div>
         <div className="dialog-actions">
           <Button type="button" onClick={onClose}>

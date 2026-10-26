@@ -9,6 +9,7 @@ import {
   Sun,
 } from 'lucide-react';
 import { Button } from './components';
+import { Select } from './controls';
 import { call } from './api';
 import { useApp } from './state';
 import type { Key } from './i18n';
@@ -69,22 +70,21 @@ export function Settings() {
           <div className="setting-content">
             <h2>{t('language')}</h2>
             <p>{t('languageDescription')}</p>
-            <select
+            <Select
               className="language-select"
               aria-label={t('language')}
               value={snapshot.settings.language}
               disabled={busy}
-              onChange={(e) => void preferences(e.target.value, snapshot.settings.theme)}
-            >
-              <option value="auto">
-                {t('autoLanguage')} ({snapshot.systemLocale})
-              </option>
-              <option value="en">English</option>
-              <option value="pt-BR">Português (Brasil)</option>
-              <option value="es">Español</option>
-              <option value="zh-CN">简体中文</option>
-              <option value="hi">हिन्दी</option>
-            </select>
+              onValueChange={(language) => void preferences(language, snapshot.settings.theme)}
+              options={[
+                { value: 'auto', label: `${t('autoLanguage')} (${snapshot.systemLocale})` },
+                { value: 'en', label: t('languageEnglish') },
+                { value: 'pt-BR', label: t('languagePortuguese') },
+                { value: 'es', label: t('languageSpanish') },
+                { value: 'zh-CN', label: t('languageChinese') },
+                { value: 'hi', label: t('languageHindi') },
+              ]}
+            />
           </div>
         </div>
       </section>

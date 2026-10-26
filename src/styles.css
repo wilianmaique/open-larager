@@ -1262,8 +1262,7 @@ main {
   border-radius: 4px;
   white-space: nowrap;
 }
-input:not([type='checkbox']):not([type='radio']),
-select {
+input:not([type='checkbox']):not([type='radio']) {
   min-height: 36px;
   border: 1px solid var(--border-strong);
   background: var(--surface);
@@ -1273,24 +1272,14 @@ select {
   width: 100%;
   font-size: 12px;
 }
-input:not([type='checkbox']):not([type='radio']):focus,
-select:focus {
+input:not([type='checkbox']):not([type='radio']):focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 input::placeholder {
   color: var(--faint);
 }
-input[type='checkbox'],
-input[type='radio'] {
-  accent-color: var(--accent);
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  flex-shrink: 0;
-}
-input:disabled,
-select:disabled {
+input:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -1313,7 +1302,7 @@ select:disabled {
   display: flex;
   gap: 10px;
 }
-.install-select select {
+.install-select .select-control {
   flex: 1;
 }
 .package-source {
@@ -1345,7 +1334,7 @@ select:disabled {
   display: flex;
   gap: 14px;
 }
-.ports-form > label {
+.ports-form > div {
   flex: 1;
 }
 .checkbox {
@@ -1804,53 +1793,6 @@ progress::-webkit-progress-value {
   white-space: nowrap;
   max-width: 420px;
 }
-.switch {
-  width: 29px;
-  height: 17px;
-  position: relative;
-  display: block;
-  flex-shrink: 0;
-}
-.switch input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-}
-.switch > span {
-  display: block;
-  width: 29px;
-  height: 17px;
-  background: var(--border-strong);
-  border-radius: 20px;
-  pointer-events: none;
-  transition: background 0.2s;
-}
-.switch > span::before {
-  content: '';
-  display: block;
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: white;
-  transition: translate 0.2s;
-  box-shadow: 0 1px 2px #0001;
-}
-.switch input:checked + span {
-  background: var(--accent);
-}
-.switch input:checked + span::before {
-  translate: 12px 0;
-}
-.switch input:focus-visible + span {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-}
 .info-strip {
   margin-top: 18px;
   display: flex;
@@ -1912,10 +1854,6 @@ progress::-webkit-progress-value {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
-}
-.mode-options input {
-  position: absolute;
-  opacity: 0;
 }
 .mode-options label:has(input:focus-visible) {
   outline: 2px solid var(--accent);
@@ -2173,6 +2111,8 @@ progress::-webkit-progress-value {
 }
 .log-select {
   min-width: 170px;
+  width: auto;
+  max-width: 100%;
 }
 .logs-page-panel {
   border: 1px solid var(--border);
@@ -2837,7 +2777,7 @@ progress::-webkit-progress-value {
   .install-select {
     flex-wrap: wrap;
   }
-  .install-select select {
+  .install-select .select-control {
     flex-basis: 100%;
   }
   .install-select > .button {

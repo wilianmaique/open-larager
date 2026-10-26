@@ -1,0 +1,4 @@
+[env]
+# rustc recognizes MSVC's English progress messages as linker_info, not linker_messages.
+# Scope the toolchain language to this build instead of suppressing linker diagnostics.
+VSLANG = { value = "1033", force = true }

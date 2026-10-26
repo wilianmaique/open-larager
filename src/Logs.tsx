@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FolderOpen, RefreshCw, ScrollText } from 'lucide-react';
 import { Button, Empty } from './components';
+import { Checkbox, Select } from './controls';
 import { call } from './api';
 import { useApp } from './state';
 import { services } from './serviceRegistry';
@@ -18,19 +19,14 @@ export function LogsPage() {
           <h1>{t('nav.logs')}</h1>
           <p>{t('logsDescription')}</p>
         </div>
-        <label className="log-select">
-          <span className="sr-only">{t('selectService')}</span>
-          <select value={selected} onChange={(e) => setSelected(e.target.value as ServiceId)}>
-            <option value="" disabled>
-              {t('selectService')}
-            </option>
-            {installed.map((s) => (
-              <option key={s.id} value={s.id}>
-                {services[s.id].name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select<ServiceId | ''>
+          className="log-select"
+          aria-label={t('selectService')}
+          value={selected}
+          onValueChange={setSelected}
+          placeholder={t('selectService')}
+          options={installed.map((s) => ({ value: s.id, label: services[s.id].name }))}
+        />
       </div>
       <section className="logs-page-panel">
         {selected ? (
@@ -106,10 +102,9 @@ export function Logs({ id }: { id: ServiceId }) {
           <code>{services[id].name}</code>
         </span>
         <div>
-          <label className="checkbox">
-            <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
-            <span>{t('autoRefresh')}</span>
-          </label>
+          <Checkbox checked={live} onChange={(e) => setLive(e.target.checked)}>
+            {t('autoRefresh')}
+          </Checkbox>
           <Button loading={loading} onClick={() => void refresh()}>
             <RefreshCw size={14} />
             {t('refresh')}
