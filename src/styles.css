@@ -98,7 +98,7 @@ small,
   color: var(--muted);
 }
 .text-green {
-  color: var(--accent);
+  color: var(--status);
 }
 .sr-only {
   width: 1px;
@@ -139,6 +139,10 @@ small,
   width: 34px;
   height: 34px;
   border-radius: 10px;
+}
+.brand img,
+.about-card img {
+  content: var(--brand-image);
 }
 .brand-weight {
   font-weight: 700;
@@ -228,7 +232,7 @@ nav {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--status);
   margin-right: 3px;
 }
 .app-version {
@@ -295,7 +299,7 @@ kbd {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #5c9c6e;
+  background: var(--connection-dot);
 }
 .connection-error > span:first-child {
   background: var(--danger);
@@ -356,7 +360,7 @@ main {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: var(--accent);
+  color: var(--status);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -366,7 +370,7 @@ main {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--status);
 }
 .hero h1 {
   font-size: 35px;
@@ -506,15 +510,15 @@ main {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #d7dfd1;
+  background: var(--art-dot, #d7dfd1);
 }
 .art-title > span:first-child {
-  background: #b8cdb2;
+  background: var(--art-dot-active, #b8cdb2);
 }
 .art-title code {
   font-size: 8px;
   margin-left: auto;
-  color: #8da185;
+  color: var(--art-label, #8da185);
 }
 .art-lines {
   padding: 13px 15px;
@@ -524,18 +528,18 @@ main {
 .art-lines i {
   width: 85px;
   height: 4px;
-  background: #c1d3b8;
+  background: var(--art-code-line, #c1d3b8);
   border-radius: 2px;
 }
 .art-lines i:nth-child(2) {
   width: 125px;
   margin-left: 13px;
-  background: #dce4d5;
+  background: var(--art-code-muted, #dce4d5);
 }
 .art-lines i:nth-child(3) {
   width: 105px;
   margin-left: 13px;
-  background: #dce4d5;
+  background: var(--art-code-muted, #dce4d5);
 }
 .art-lines i:nth-child(4) {
   width: 60px;
@@ -545,14 +549,14 @@ main {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--accent);
+  color: var(--status);
   font-size: 9px;
 }
 .art-led {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--status);
   margin-left: auto;
 }
 .art-code {
@@ -593,13 +597,13 @@ main {
   position: absolute;
   top: 222px;
   left: 43px;
-  color: #7e9d6b;
+  color: var(--art-detail, #7e9d6b);
   transform: rotate(-30deg);
 }
 .art-cross {
   position: absolute;
   font-size: 19px;
-  color: #91a286;
+  color: var(--art-cross, #91a286);
   font-weight: 300;
 }
 .cross-one {
@@ -675,7 +679,7 @@ main {
   font-weight: 500;
   letter-spacing: -0.8px;
   height: 48px;
-  color: var(--accent);
+  color: var(--status);
 }
 .security-address svg {
   opacity: 0.7;
@@ -913,16 +917,16 @@ main {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--faint);
+  background: var(--status-idle, var(--faint));
 }
 .status-running {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent-border);
+  color: var(--status);
+  background: var(--status-soft);
+  border-color: var(--status-border);
 }
 .status-running > span {
-  background: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  background: var(--status);
+  box-shadow: 0 0 0 2px var(--status-soft);
 }
 .status-error {
   color: var(--danger);
@@ -1099,7 +1103,7 @@ main {
   animation: dialog-in 0.18s ease-out;
 }
 .dialog::backdrop {
-  background: #12231d55;
+  background: var(--backdrop, #12231d55);
   backdrop-filter: blur(3px);
 }
 @keyframes dialog-in {
@@ -1542,7 +1546,7 @@ progress::-webkit-progress-value {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--status);
   flex-shrink: 0;
   margin-top: 5px;
 }
@@ -1686,7 +1690,7 @@ progress::-webkit-progress-value {
 }
 .sync-tag {
   font-size: 9px;
-  color: #a77724;
+  color: var(--warning);
   background: var(--warning-soft);
   padding: 3px 6px;
   border-radius: 4px;
@@ -1695,8 +1699,8 @@ progress::-webkit-progress-value {
   align-items: center;
 }
 .sync-tag.synced {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--status-soft);
+  color: var(--status);
 }
 .hosts-card h2 {
   margin-top: 12px;
@@ -1731,7 +1735,7 @@ progress::-webkit-progress-value {
   color: var(--faint);
 }
 .hosts-preview code {
-  color: var(--accent);
+  color: var(--status);
   font-size: 10px;
 }
 .domain-list-section {
@@ -1970,25 +1974,34 @@ progress::-webkit-progress-value {
   background: #eef1e9;
 }
 .theme-preview-dark {
-  background: #202723;
-  border-color: #3b443e;
+  background: #10161f;
+  border-color: #303e52;
 }
 .theme-preview-dark::before {
-  background: #18211c;
-  border-color: #3b443e;
+  background: #171f2a;
+  border-color: #303e52;
 }
 .theme-preview-dark > i {
-  background: #424e45;
+  background: #a4b3c8;
+}
+.theme-preview-dark > i:nth-child(2) {
+  background: #82a2ff;
 }
 .theme-preview-dark > i:nth-child(3) {
-  border-color: #3b443e;
-  background: #29372d;
+  border-color: #303e52;
+  background: #1b2430;
 }
 .theme-preview-system {
-  background: linear-gradient(110deg, #f5f6f3 50%, #202723 50%);
+  background: linear-gradient(110deg, #f5f6f3 50%, #10161f 50%);
+}
+.theme-preview-system > i {
+  background: linear-gradient(110deg, #d9ded5 40%, #a4b3c8 40%);
+}
+.theme-preview-system > i:nth-child(2) {
+  background: linear-gradient(110deg, #d9ded5 40%, #82a2ff 40%);
 }
 .theme-preview-system > i:nth-child(3) {
-  background: linear-gradient(110deg, #eef1e9 40%, #29372d 40%);
+  background: linear-gradient(110deg, #eef1e9 40%, #1b2430 40%);
 }
 .theme-options > button > span:last-child {
   display: flex;
@@ -2159,8 +2172,8 @@ progress::-webkit-progress-value {
   background: var(--faint);
 }
 .live-dot.live {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--status);
+  box-shadow: 0 0 0 3px var(--status-soft);
 }
 .log-content {
   margin: 0;
@@ -2375,7 +2388,7 @@ progress::-webkit-progress-value {
   .nav-backdrop {
     position: fixed;
     inset: 0;
-    background: #12231d44;
+    background: var(--nav-backdrop, #12231d44);
     border: 0;
     z-index: 25;
   }
