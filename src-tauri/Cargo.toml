@@ -1,0 +1,48 @@
+[package]
+name = "open-larager"
+version = "0.1.0"
+description = "A portable local development environment manager for Windows"
+authors = ["Open Larager contributors"]
+edition = "2024"
+rust-version = "1.90"
+default-run = "open-larager"
+
+[lib]
+name = "larager"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.54.1", features = ["full"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json", "stream"] }
+rustls = { version = "0.23.46", default-features = false, features = ["std", "tls12", "aws_lc_rs"] }
+tokio-rustls = "0.26.6"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+sha1 = "0.10"
+zip = { version = "9.1.2", default-features = false, features = ["deflate"] }
+uuid = { version = "1", features = ["v4"] }
+sys-locale = "0.3.2"
+thiserror = "2"
+fs2 = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_Memory"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+panic = "abort"

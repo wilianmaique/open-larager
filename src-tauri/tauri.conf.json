@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Open Larager",
+  "version": "0.1.0",
+  "identifier": "dev.openlarager.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Open Larager",
+        "width": 1320,
+        "height": 900,
+        "minWidth": 720,
+        "minHeight": 560,
+        "center": true,
+        "backgroundColor": "#f5f6f3"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src ipc: http://ipc.localhost; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'",
+      "capabilities": ["main"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "shortDescription": "Your local development environment, thoughtfully managed.",
+    "category": "DeveloperTool",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],
+    "windows": {
+      "webviewInstallMode": { "type": "skip" },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English", "PortugueseBR", "Spanish", "SimpChinese", "Hindi"],
+        "displayLanguageSelector": true
+      }
+    }
+  }
+}

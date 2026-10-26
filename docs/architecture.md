@@ -1,0 +1,29 @@
+# Arquitetura e limites de segurança
+
+`src/` contém a interface React. `src-tauri/src/` contém modelo, persistência, catálogo, instalação, configurações, processos Windows, hosts e a API Tauri. A interface não recebe acesso genérico ao shell ou ao sistema de arquivos. Os comandos aceitam identificadores de serviços conhecidos; os caminhos e executáveis são derivados no Rust.
+
+O motor serializa alterações no ambiente e permite leituras de estado e cancelamento de downloads durante operações. Uma trava de arquivo impede duas instâncias de controlarem o mesmo ambiente. Instalações passam por download em staging, SHA-256, extração protegida contra traversal, links e limites de expansão, conferência do executável e promoção por rename no mesmo volume. Downloads incompletos são descartados na próxima abertura.
+
+Mudanças de configuração e estado utilizam gravações atômicas e um journal de recuperação. Uma revisão identifica quando a persistência terminou; uma interrupção anterior provoca restauração das configurações na próxima abertura. Ao editar portas do PHP ou SMTP do Mailpit, os endereços dependentes nas configurações gerenciadas são atualizados. Serviços dependentes devem estar parados.
+
+Os padrões usam IPv4 loopback. O app verifica portas antes de iniciar e confirma a abertura do listener com o processo ainda vivo. Os listeners dos serviços são verificados por TCP. No gateway, a inicialização e a recarga também aguardam um handshake TLS validado pela CA local, sem fazer uma requisição ao projeto. As consultas e os demais protocolos são verificados pela suíte de integração. Processos são criados suspensos, associados a um Job Object e então liberados para executar, incluindo comandos de inicialização. Uma falha do gerenciador encerra a árvore de processos. Isso não substitui backups dos bancos.
+
+Cada versão de banco tem um diretório próprio. MySQL e PostgreSQL recebem senhas aleatórias. As credenciais persistidas são protegidas com DPAPI; o diretório do ambiente recebe ACL restrita ao proprietário e SYSTEM. Arquivos temporários necessários às ferramentas dos bancos têm essa mesma proteção. A edição avançada altera configurações do próprio usuário; ela pode mudar comportamento dos servidores, portanto esses arquivos devem ser tratados como código confiável.
+
+O auxiliar elevado oferece apenas `--apply-hosts` com hostnames ASCII validados. Ele não aceita um arquivo de destino ou um script fornecido pela interface. Atualiza exclusivamente o bloco identificado, mantém uma cópia anterior e recusa domínios já presentes fora desse bloco. Comentários em codificações de byte único são preservados. Não há elevação para operar os serviços.
+
+O gateway Caddy é opcional e usa `tls internal`, armazenamento próprio e `skip_install_trust`. Confiar ou remover confiança usa `certutil -user`, limitado ao certificado desse ambiente; a remoção usa o fingerprint da CA. Outros navegadores com armazenamento próprio podem exigir importação adicional do certificado. Nenhuma mudança de confiança é feita silenciosamente.
+
+## Catálogo
+
+`src-tauri/catalog/packages.json` é incorporado à aplicação. A interface não pode fornecer URL, hash ou executável arbitrários ao instalador. Redirecionamentos permanecem restritos a HTTPS e a hosts permitidos.
+
+PHP usa o feed atual em `downloads.php.net/~windows`. Apache usa Apache Lounge. MySQL usa Oracle e PostgreSQL os binários da EDB. Nginx usa nginx.org; Caddy e Mailpit usam seus releases oficiais no GitHub. Redis usa `redis-windows/redis-windows`, uma distribuição comunitária, identificada como tal na interface e sujeita à licença publicada por esse projeto.
+
+`publisher-sha256` significa checksum publicado pelo distribuidor ou digest do asset no GitHub. `https-pinned` significa que o mantenedor obteve o ZIP por HTTPS oficial e fixou seu SHA-256 no catálogo; isso não equivale à validação de uma assinatura PGP. O app verifica ambos antes de extrair. O catálogo não se atualiza silenciosamente: novas versões passam pelo fluxo de manutenção e release.
+
+O Monaco e seu worker são empacotados localmente e carregados sob demanda. A CSP não permite scripts remotos, iframes ou navegação com acesso ao IPC. A prévia no navegador não simula serviços em execução. Mocks de IPC existem apenas nos testes de interface.
+
+MySQL e PostgreSQL possuem diferenças de codificação de caminhos no Windows. A camada de compatibilidade utiliza os nomes curtos existentes, obtidos por `GetShortPathNameW`, quando um caminho contém caracteres fora de ASCII. Ela não cria junctions nem altera as configurações de nomes curtos do volume. Se o sistema não fornecer um alias utilizável, a operação informa a necessidade de usar modo portátil em um caminho ASCII. Redis utiliza os caminhos POSIX esperados por sua distribuição MSYS2/Cygwin.
+
+Nginx recebe nomes de configuração relativos a um diretório de trabalho definido por API Unicode. Isso preserva caminhos UTF-8 sem depender de aliases que o próprio Nginx recusa.

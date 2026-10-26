@@ -1,0 +1,37 @@
+name: Windows verification
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      real-services:
+        description: Download and run all portable distributions
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+      - name: Install pnpm and Rust checks
+        shell: pwsh
+        run: |
+          npm install --global pnpm@11.21.0
+          rustup component add clippy rustfmt
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install chromium
+      - run: pnpm test:e2e
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Verify real distributions
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.real-services }}
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked --test portable_lifecycle -- --ignored --nocapture --test-threads=1
+      - run: pnpm desktop:build
