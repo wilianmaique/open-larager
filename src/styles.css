@@ -919,12 +919,14 @@ main {
   border-radius: 50%;
   background: var(--status-idle, var(--faint));
 }
-.status-running {
+.status-running,
+.status-ready {
   color: var(--status);
   background: var(--status-soft);
   border-color: var(--status-border);
 }
-.status-running > span {
+.status-running > span,
+.status-ready > span {
   background: var(--status);
   box-shadow: 0 0 0 2px var(--status-soft);
 }
@@ -1333,6 +1335,30 @@ input:disabled {
 }
 .service-settings-form {
   margin-top: 13px;
+}
+.path-install-option {
+  margin-top: 18px;
+}
+.service-drawer [data-notification-host] > .notification {
+  position: static;
+  max-width: none;
+  margin: 0 0 16px;
+}
+.path-section > .checkbox {
+  margin-top: 16px;
+}
+.path-directory {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 11px;
+  margin-top: 8px;
+}
+.path-conflict {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
 }
 .ports-form {
   display: flex;
@@ -1755,6 +1781,43 @@ progress::-webkit-progress-value {
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid var(--border);
+}
+.site-server-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.site-service-hint {
+  flex-wrap: wrap;
+}
+.site-service-hint > span {
+  flex: 1;
+}
+.site-config-dialog {
+  width: min(900px, calc(100vw - 32px));
+  max-width: min(900px, calc(100vw - 32px));
+}
+.site-config-dialog [data-notification-host] > .notification {
+  position: static;
+  max-width: none;
+  margin: 0 25px 16px;
+}
+.site-config-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+.site-config-editor {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.site-config-path {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  margin: 12px 0;
+  color: var(--muted);
 }
 .domain-row:last-child {
   border-bottom: 0;

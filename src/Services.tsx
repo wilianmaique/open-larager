@@ -32,6 +32,7 @@ export function Overview() {
     (n, s) => n + s.installations.length,
     0,
   );
+  const hasDaemon = snapshot.services.some((s) => s.version && services[s.id].daemon);
   return (
     <>
       <section className="hero">
@@ -49,7 +50,7 @@ export function Overview() {
           <div className="hero-actions">
             <Button
               variant="primary"
-              disabled={busy || installed === 0}
+              disabled={busy || !hasDaemon}
               onClick={() =>
                 void run(() => call('stack_action', { action: 'start' }), t('actionSuccess'))
               }
@@ -283,6 +284,7 @@ function ServiceList({ compact = false }: { compact?: boolean }) {
                   {!status.version && <small>{t('available')}</small>}
                 </div>
                 <div className="port-cell" role="cell">
+                  {!service.daemon && <span>{t('terminalTool')}</span>}
                   {snapshot.settings.services[id].ports.map((port) => (
                     <span key={port}>{port}</span>
                   ))}
@@ -305,6 +307,11 @@ function ServiceList({ compact = false }: { compact?: boolean }) {
                     <Button disabled={busy} onClick={() => setSelected(id)}>
                       <Plus size={14} />
                       {t('install')}
+                    </Button>
+                  ) : !service.daemon ? (
+                    <Button onClick={() => setSelected(id)}>
+                      <Settings2 size={16} />
+                      {t('manage')}
                     </Button>
                   ) : (
                     <>

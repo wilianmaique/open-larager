@@ -79,6 +79,62 @@ pub fn command(executable: impl AsRef<std::ffi::OsStr>) -> Command {
     command
 }
 
+/// Relaunch with the same user's filtered token before opening storage. The hosts
+/// helper bypasses this path and remains the only elevated operation.
+#[cfg(windows)]
+pub fn relaunch_unelevated() -> Result<bool> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::{
+        Win32::{
+            Foundation::{CloseHandle, HANDLE},
+            Security::*,
+            System::Threading::*,
+        },
+        core::PCWSTR,
+    };
+    unsafe {
+        let mut token = HANDLE::default();
+        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token)
+            .map_err(|e| invalid(e.to_string()))?;
+        let result = (|| {
+            let mut elevation = TOKEN_ELEVATION::default();
+            let mut length = 0;
+            GetTokenInformation(
+                token,
+                TokenElevation,
+                Some(&mut elevation as *mut _ as *mut _),
+                std::mem::size_of_val(&elevation) as u32,
+                &mut length,
+            )
+            .map_err(|e| invalid(e.to_string()))?;
+            if elevation.TokenIsElevated == 0 {
+                return Ok(false);
+            }
+            let mut linked = TOKEN_LINKED_TOKEN::default();
+            GetTokenInformation(token, TokenLinkedToken, Some(&mut linked as *mut _ as *mut _), std::mem::size_of_val(&linked) as u32, &mut length)
+                .map_err(|_| invalid("Start Open Larager from a standard Windows session. No filtered user token is available."))?;
+            let launched = (|| {
+                let exe = std::env::current_exe()?;
+                let wide: Vec<u16> = exe.as_os_str().encode_wide().chain(Some(0)).collect();
+                let startup = STARTUPINFOW {
+                    cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+                    ..Default::default()
+                };
+                let mut process = PROCESS_INFORMATION::default();
+                CreateProcessWithTokenW(linked.LinkedToken, LOGON_WITH_PROFILE, PCWSTR(wide.as_ptr()), None, CREATE_UNICODE_ENVIRONMENT, None, PCWSTR::null(), &startup, &mut process)
+                    .map_err(|e| invalid(format!("Unable to restart without administrator privileges. Open the app normally: {e}")))?;
+                let _ = CloseHandle(process.hThread);
+                let _ = CloseHandle(process.hProcess);
+                Ok(true)
+            })();
+            let _ = CloseHandle(linked.LinkedToken);
+            launched
+        })();
+        let _ = CloseHandle(token);
+        result
+    }
+}
+
 pub struct Process {
     pub child: Child,
     #[cfg(windows)]
@@ -238,9 +294,36 @@ enum TextEncoding {
     Utf16Le,
 }
 
+pub fn decode_service_text(bytes: &[u8]) -> String {
+    let bytes = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(bytes);
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return text.to_owned();
+    }
+    #[cfg(windows)]
+    unsafe {
+        use windows::Win32::Globalization::{
+            CP_ACP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS, MultiByteToWideChar,
+        };
+        let size = MultiByteToWideChar(CP_ACP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0), bytes, None);
+        if size > 0 {
+            let mut wide = vec![0u16; size as usize];
+            let written = MultiByteToWideChar(
+                CP_ACP,
+                MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0),
+                bytes,
+                Some(&mut wide),
+            );
+            if written > 0 {
+                return String::from_utf16_lossy(&wide[..written as usize]);
+            }
+        }
+    }
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
 fn decode_output(bytes: &[u8], encoding: TextEncoding) -> Result<String> {
     match encoding {
-        TextEncoding::Utf8 => Ok(String::from_utf8_lossy(bytes).into_owned()),
+        TextEncoding::Utf8 => Ok(decode_service_text(bytes)),
         TextEncoding::Utf16Le => {
             let bytes = bytes.strip_prefix(&[0xff, 0xfe]).unwrap_or(bytes);
             let (pairs, remainder) = bytes.as_chunks::<2>();
@@ -456,6 +539,28 @@ pub fn open_path(_: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preserves_utf8_service_output_and_removes_bom() {
+        let text = "Execução: usuário, permissões, ação. 中文";
+        assert_eq!(decode_service_text(text.as_bytes()), text);
+        assert_eq!(
+            decode_service_text(&[b"\xef\xbb\xbf".as_slice(), text.as_bytes()].concat()),
+            text
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn decodes_legacy_service_output_using_windows_code_page() {
+        use windows::Win32::Globalization::GetACP;
+        if unsafe { GetACP() } == 1252 {
+            assert_eq!(
+                decode_service_text(b"Execu\xe7\xe3o: usu\xe1rio"),
+                "Execução: usuário"
+            );
+        }
+    }
 
     #[test]
     fn decodes_certificate_details_without_losing_unicode_or_exposing_the_bom() {

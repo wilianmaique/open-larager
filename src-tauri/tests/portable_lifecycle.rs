@@ -174,6 +174,8 @@ async fn gateway_proxy_hot_reload() {
             mode: SiteMode::Proxy,
             upstream_port: Some(settings.services[&ServiceId::Mailpit].ports[1]),
             enabled: true,
+            server: Default::default(),
+            nginx_directives: None,
         })
         .await
         .unwrap();
@@ -224,7 +226,7 @@ async fn portable_services_complete_lifecycle() {
     let engine = Engine::open(workspace.path().to_owned()).unwrap();
     let available = catalog::packages().unwrap();
     let mut held = Vec::new();
-    for id in ServiceId::ALL {
+    for id in ServiceId::ALL.into_iter().filter(|id| id.is_daemon()) {
         let mut ports = Vec::new();
         for _ in id.ports() {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
@@ -248,6 +250,8 @@ async fn portable_services_complete_lifecycle() {
             mode: SiteMode::Static,
             upstream_port: None,
             enabled: true,
+            server: Default::default(),
+            nginx_directives: None,
         })
         .await
         .unwrap();
@@ -259,10 +263,12 @@ async fn portable_services_complete_lifecycle() {
             mode: SiteMode::Php,
             upstream_port: None,
             enabled: true,
+            server: Default::default(),
+            nginx_directives: None,
         })
         .await
         .unwrap();
-    for id in ServiceId::ALL {
+    for id in ServiceId::ALL.into_iter().filter(|id| id.is_daemon()) {
         let package = available.iter().find(|p| p.service == id).unwrap();
         eprintln!("Installing {} {}", id.key(), package.version);
         engine
@@ -406,7 +412,7 @@ async fn portable_services_complete_lifecycle() {
         .status()
         .is_success()
     );
-    for id in ServiceId::ALL {
+    for id in ServiceId::ALL.into_iter().filter(|id| id.is_daemon()) {
         eprintln!("Restarting {}", id.key());
         engine.service_action(id, "restart").await.unwrap();
         engine.service_action(id, "stop").await.unwrap();

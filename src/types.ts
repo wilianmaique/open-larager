@@ -7,6 +7,8 @@ export const serviceIds = [
   'redis',
   'mailpit',
   'caddy',
+  'nodejs',
+  'composer',
 ] as const;
 export type ServiceId = (typeof serviceIds)[number];
 export type Page = 'overview' | 'services' | 'domains' | 'logs' | 'settings';
@@ -22,12 +24,28 @@ export interface Package {
   size: number;
   community: boolean;
   verification: string;
+  format?: 'zip' | 'phar';
+  bundledTools?: Record<string, string>;
 }
 export interface ServiceSettings {
   activeVersion: string | null;
   installations: { version: string; installedAt: number; sha256: string }[];
   ports: number[];
   autoStart: boolean;
+  addToPath: boolean;
+}
+export interface PathStatus {
+  enabled: boolean;
+  present: boolean;
+  directory: string | null;
+  version: string | null;
+  command: string;
+  firstMatch: string | null;
+  shadowed: boolean;
+  external: boolean;
+  phpConfig: string | null;
+  directories?: string[];
+  commands?: { command: string; firstMatch: string | null; shadowed: boolean }[];
 }
 export interface Site {
   id: string;
@@ -36,6 +54,14 @@ export interface Site {
   mode: 'php' | 'static' | 'proxy';
   upstreamPort: number | null;
   enabled: boolean;
+  server: 'caddy' | 'nginx';
+  nginxDirectives: string | null;
+}
+export interface SiteConfig {
+  content: string;
+  generated: string;
+  path: string;
+  customized: boolean;
 }
 export interface Settings {
   schemaVersion: number;
@@ -46,7 +72,7 @@ export interface Settings {
 }
 export interface ServiceStatus {
   id: ServiceId;
-  status: 'running' | 'stopped' | 'notInstalled' | 'error';
+  status: 'running' | 'stopped' | 'notInstalled' | 'error' | 'ready' | 'dependencyMissing';
   version: string | null;
   pid: number | null;
   uptime: number;

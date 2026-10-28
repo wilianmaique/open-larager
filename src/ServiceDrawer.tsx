@@ -26,25 +26,39 @@ import {
   Status,
 } from './components';
 import { Checkbox, NumberInput, Select } from './controls';
-import { call, packages } from './api';
+import { call, packages, userPathApi } from './api';
 import { descriptionKeys, useApp } from './state';
 import { services } from './serviceRegistry';
 import { Logs } from './Logs';
-import type { Credentials, ServiceId } from './types';
+import { serviceIds, type Credentials, type ServiceId, type PathStatus } from './types';
 import type { Key } from './i18n';
 
 const ConfigEditor = lazy(() => import('./ConfigEditor'));
 export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => void }) {
-  const { t, snapshot, busy, run, progress, locale, toast } = useApp();
+  const { t, snapshot, busy, run, progress, locale, toast, setSelected } = useApp();
   const status = snapshot.services.find((s) => s.id === id)!;
   const config = snapshot.settings.services[id];
   const service = services[id];
+  const dependentPaths = serviceIds.filter(
+    (dependent) =>
+      (services[dependent].dependencies as string[]).includes(id) &&
+      snapshot.settings.services[dependent].addToPath,
+  );
+  const dependenciesReady = service.dependencies.every(
+    (dependency) => snapshot.settings.services[dependency as ServiceId].activeVersion,
+  );
+  const dependencyVersions = service.dependencies
+    .map((dependency) => snapshot.settings.services[dependency as ServiceId].activeVersion)
+    .join(',');
   const available = packages.filter((pkg) => pkg.service === id);
   const [tab, setTab] = useState<'overview' | 'configuration' | 'logs'>('overview');
   const [installVersion, setInstallVersion] = useState(available[0]?.version ?? '');
   const [activeVersion, setActiveVersion] = useState(config.activeVersion ?? '');
   const [ports, setPorts] = useState(config.ports.map(String));
   const [autoStart, setAutoStart] = useState(config.autoStart);
+  const [registerAfterInstall, setRegisterAfterInstall] = useState(false);
+  const [pathStatus, setPathStatus] = useState<PathStatus | null>(null);
+  const [pathError, setPathError] = useState('');
   const [content, setContent] = useState('');
   const [original, setOriginal] = useState('');
   const [editorLoading, setEditorLoading] = useState(false);
@@ -54,6 +68,23 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
   const [pendingTab, setPendingTab] = useState<typeof tab | null>(null);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const dirty = content !== original;
+  useEffect(() => {
+    let active = true;
+    setPathStatus(null);
+    setPathError('');
+    if (!config.activeVersion || !dependenciesReady) return;
+    void userPathApi
+      .status(id)
+      .then((value) => {
+        if (active) setPathStatus(value);
+      })
+      .catch((error: unknown) => {
+        if (active) setPathError(String(error));
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, config.activeVersion, config.addToPath, dependenciesReady, dependencyVersions]);
   useEffect(() => {
     setActiveVersion(config.activeVersion ?? '');
     setPorts(config.ports.map(String));
@@ -113,7 +144,10 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
   };
   const install = () =>
     void run(
-      () => call('install_package', { id, version: installVersion }),
+      async () => {
+        await userPathApi.install(id, installVersion, registerAfterInstall);
+        setRegisterAfterInstall(false);
+      },
       t('installSuccess', { name: service.name }),
     );
   const action = (action: string) =>
@@ -146,7 +180,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
         <Status status={status.status} />
         {status.pid && <code>PID {status.pid}</code>}
         <div className="drawer-status-actions">
-          {config.activeVersion && (
+          {config.activeVersion && service.daemon && (
             <>
               <IconButton
                 label={t('restart')}
@@ -168,7 +202,13 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
         </div>
       </div>
       <div className="drawer-tabs" role="tablist" aria-label={service.name}>
-        {(['overview', 'configuration', 'logs'] as const).map((name) => (
+        {(
+          [
+            'overview',
+            ...(service.configName ? ['configuration' as const] : []),
+            ...(service.daemon ? ['logs' as const] : []),
+          ] as const
+        ).map((name) => (
           <button
             key={name}
             role="tab"
@@ -180,6 +220,24 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
         ))}
       </div>
       <div className="drawer-body" role="tabpanel">
+        <div data-notification-host />
+        {!service.daemon && (
+          <section className="drawer-section">
+            <p>{t('terminalToolHelp')}</p>
+            {id === 'nodejs' && <p>{t('nodeNpmHelp')}</p>}
+            {id === 'composer' && (
+              <>
+                <p>
+                  {t('composerPhpHelp', {
+                    version: snapshot.settings.services.php.activeVersion ?? '—',
+                  })}
+                </p>
+                {!dependenciesReady && <p className="field-help">{t('toolDependencyRequired')}</p>}
+                <Button onClick={() => setSelected('php')}>{t('managePhp')}</Button>
+              </>
+            )}
+          </section>
+        )}
         {status.message && (
           <div className="inline-error" role="alert">
             {status.message}
@@ -235,6 +293,31 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                   )}
                 </div>
               )}
+              {selectedPackage &&
+                'bundledTools' in selectedPackage &&
+                selectedPackage.bundledTools && (
+                  <p className="field-help">
+                    {t('bundledTool', {
+                      name: 'npm',
+                      version: selectedPackage.bundledTools.npm ?? '—',
+                    })}
+                  </p>
+                )}
+              <div className="path-install-option">
+                <Checkbox
+                  checked={config.addToPath || registerAfterInstall}
+                  disabled={busy || config.addToPath || alreadyInstalled || !dependenciesReady}
+                  onChange={(event) => setRegisterAfterInstall(event.target.checked)}
+                >
+                  {t('pathInstallOption')}
+                </Checkbox>
+                <p className="field-help">
+                  {t('pathInstallHelp', {
+                    name: service.name,
+                    version: config.activeVersion ?? installVersion,
+                  })}
+                </p>
+              </div>
               {currentProgress && (
                 <div className="download-progress" role="status">
                   <div>
@@ -277,43 +360,120 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                     label: pkg.version,
                   }))}
                 />
-                <div className="ports-form">
-                  {ports.map((port, index) => (
-                    <div key={index}>
-                      <label className="field-label" htmlFor={`${id}-port-${index}`}>
-                        {t(portLabels[index])}
-                      </label>
-                      <NumberInput
-                        id={`${id}-port-${index}`}
-                        label={t(portLabels[index])}
-                        min={1}
-                        max={65535}
-                        required
-                        value={port}
-                        onValueChange={(value) =>
-                          setPorts((current) =>
-                            current.map((old, i) => (i === index ? value : old)),
-                          )
-                        }
-                        disabled={busy || status.status === 'running'}
-                      />
+                {service.daemon && (
+                  <>
+                    <div className="ports-form">
+                      {ports.map((port, index) => (
+                        <div key={index}>
+                          <label className="field-label" htmlFor={`${id}-port-${index}`}>
+                            {t(portLabels[index])}
+                          </label>
+                          <NumberInput
+                            id={`${id}-port-${index}`}
+                            label={t(portLabels[index])}
+                            min={1}
+                            max={65535}
+                            required
+                            value={port}
+                            onValueChange={(value) =>
+                              setPorts((current) =>
+                                current.map((old, i) => (i === index ? value : old)),
+                              )
+                            }
+                            disabled={busy || status.status === 'running'}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <p className="field-help">{t('portHelp')}</p>
-                <Checkbox
-                  checked={autoStart}
-                  onChange={(e) => setAutoStart(e.target.checked)}
-                  disabled={busy || status.status === 'running'}
-                >
-                  {t('autoStart')}
-                </Checkbox>
+                    <p className="field-help">{t('portHelp')}</p>
+                    <Checkbox
+                      checked={autoStart}
+                      onChange={(e) => setAutoStart(e.target.checked)}
+                      disabled={busy || status.status === 'running'}
+                    >
+                      {t('autoStart')}
+                    </Checkbox>
+                  </>
+                )}
                 <Button type="submit" disabled={busy || status.status === 'running'}>
                   <Save size={14} />
                   {t('save')}
                 </Button>
               </form>
             </section>
+            {config.activeVersion && (
+              <section className="drawer-section path-section">
+                <h3>{t('userPathTitle')}</h3>
+                <p>{t('userPathHelp')}</p>
+                <Checkbox
+                  checked={config.addToPath ?? false}
+                  disabled={busy || (!config.addToPath && !dependenciesReady)}
+                  onChange={(event) =>
+                    void run(async () => {
+                      await userPathApi.set(id, event.target.checked);
+                      setPathStatus(await userPathApi.status(id));
+                    }, t('pathUpdated'))
+                  }
+                >
+                  {t('pathFollowActive', { name: service.name })}
+                </Checkbox>
+                <p className="field-help">
+                  {t('pathVersion', { name: service.name, version: config.activeVersion })}
+                </p>
+                {pathError && (
+                  <p className="inline-error" role="alert">
+                    {pathError}
+                  </p>
+                )}
+                {(
+                  pathStatus?.directories ?? (pathStatus?.directory ? [pathStatus.directory] : [])
+                ).map((directory) => (
+                  <code key={directory} className="path-directory">
+                    {directory}
+                  </code>
+                ))}
+                {config.addToPath && pathStatus && !pathStatus.present && (
+                  <div className="inline-error">
+                    <p>{t('pathMissing')}</p>
+                    <Button
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          await userPathApi.set(id, true);
+                          setPathStatus(await userPathApi.status(id));
+                        }, t('pathUpdated'))
+                      }
+                    >
+                      {t('pathRepair')}
+                    </Button>
+                  </div>
+                )}
+                {pathStatus?.shadowed && (
+                  <div className="path-conflict">
+                    <p>{t('pathConflict', { command: pathStatus.command })}</p>
+                    <code className="path-directory">{pathStatus.firstMatch}</code>
+                  </div>
+                )}
+                {pathStatus?.commands
+                  ?.filter((command) => command.shadowed && command.command !== pathStatus.command)
+                  .map((command) => (
+                    <div className="path-conflict" key={command.command}>
+                      <p>{t('pathConflict', { command: command.command })}</p>
+                      <code className="path-directory">{command.firstMatch}</code>
+                    </div>
+                  ))}
+                {pathStatus?.external && <p className="field-help">{t('pathExternal')}</p>}
+                {config.addToPath && <p className="field-help">{t('pathNewTerminal')}</p>}
+                {config.addToPath && pathStatus?.phpConfig && (
+                  <p className="field-help">
+                    {t('pathPhpConfig')}
+                    <code className="path-directory">
+                      php -c &quot;{pathStatus.phpConfig}&quot;
+                    </code>
+                  </p>
+                )}
+              </section>
+            )}
             {config.activeVersion && (
               <section className="drawer-section">
                 <h3>{t('installedPackages')}</h3>
@@ -415,25 +575,17 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                   {editorError}
                 </div>
               )}
-              <p className="field-help">{t(id === 'caddy' ? 'gatewayConfigHelp' : 'configHelp')}</p>
+              <p className="field-help">
+                {t(
+                  id === 'caddy'
+                    ? 'gatewayConfigHelp'
+                    : id === 'nginx'
+                      ? 'nginxConfigHelp'
+                      : 'configHelp',
+                )}
+              </p>
               <div className="editor-label">
-                <code>
-                  {id === 'php'
-                    ? 'php.ini'
-                    : id === 'apache'
-                      ? 'httpd.conf'
-                      : id === 'mysql'
-                        ? 'my.ini'
-                        : id === 'postgresql'
-                          ? 'postgresql.conf'
-                          : id === 'nginx'
-                            ? 'nginx.conf'
-                            : id === 'redis'
-                              ? 'redis.conf'
-                              : id === 'mailpit'
-                                ? 'mailpit.json'
-                                : 'Caddyfile'}
-                </code>
+                <code>{service.configName}</code>
                 <span>{id === 'caddy' ? t('readOnly') : dirty ? '●' : ''}</span>
               </div>
               <Suspense fallback={<div className="editor-loading">{t('busy')}</div>}>
@@ -474,12 +626,30 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
           />
           <div className="dialog-content">
             <p>{t('keepData')}</p>
+            {config.installations.length === 1 && dependentPaths.length > 0 && (
+              <p role="alert">
+                {t('dependencyPathInUse', {
+                  names: dependentPaths.map((dependent) => services[dependent].name).join(', '),
+                })}
+              </p>
+            )}
+            {config.addToPath && removeVersion === config.activeVersion && (
+              <p>
+                {config.installations.some((pkg) => pkg.version !== removeVersion)
+                  ? t('pathRemoveFallback', {
+                      name: service.name,
+                      version: config.installations.find((pkg) => pkg.version !== removeVersion)!
+                        .version,
+                    })
+                  : t('pathRemoveLast')}
+              </p>
+            )}
           </div>
           <div className="dialog-actions">
             <Button onClick={() => setRemoveVersion(null)}>{t('cancel')}</Button>
             <Button
               variant="danger"
-              disabled={busy}
+              disabled={busy || (config.installations.length === 1 && dependentPaths.length > 0)}
               onClick={() =>
                 void run(async () => {
                   await call('remove_package', { id, version: removeVersion });

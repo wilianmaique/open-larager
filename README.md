@@ -2,7 +2,7 @@
 
 Gerenciador de ambientes de desenvolvimento para **Windows 11 x64**, feito com Tauri 2, Rust, React e TypeScript. Sem servidores pré-instalados e sem telemetria. A interface inclui português brasileiro, inglês, espanhol, chinês simplificado e hindi, com detecção do idioma do sistema, temas e suporte a movimento reduzido.
 
-PHP, Apache, MySQL, PostgreSQL, Nginx, Redis, Mailpit e o gateway HTTPS Caddy são baixados individualmente, conforme a escolha do usuário. Cada download é verificado pelo SHA-256 fixado no catálogo antes de ser extraído. Instalações utilizam arquivos ZIP, sem registrar serviços do Windows ou executar instaladores desses componentes.
+PHP, Node.js com npm/npx, Composer, Apache, MySQL, PostgreSQL, Nginx, Redis, Mailpit e o gateway HTTPS Caddy são baixados individualmente, conforme a escolha do usuário. Cada download é verificado pelo SHA-256 fixado no catálogo. As distribuições usam ZIP; Composer usa o PHAR oficial. Nenhum instalador desses componentes é executado e nenhum serviço do Windows é registrado.
 
 ## Executar e compilar
 
@@ -25,14 +25,32 @@ Resultado: `src-tauri/target/release/open-larager.exe`. O executável contém a 
 
 ## Primeiro projeto com HTTPS
 
-1. Instale a versão desejada do PHP e o Caddy pelo painel de serviços.
-2. Inicie os dois serviços. Apache e Nginx são opções independentes; o gateway também serve PHP diretamente.
-3. Em **Domínios e HTTPS**, adicione `meu-site.test` e escolha a pasta pública do projeto. Para Laravel, selecione `public`.
+1. Instale a versão desejada do PHP, o Nginx e o Caddy pelo painel de serviços.
+2. Em **Domínios e HTTPS**, adicione `meu-site.test`, selecione **Nginx + HTTPS** e escolha a pasta pública do projeto. Para Laravel, selecione `public`.
+3. Inicie PHP, Nginx e Caddy. A opção **Caddy direto** atende o site sem Nginx; domínios existentes mantêm essa opção.
 4. Aplique os hosts. O Windows solicitará elevação somente para atualizar o bloco do app nesse arquivo.
 5. Confie na CA local pelo botão correspondente. Ela é adicionada ao armazenamento de certificados do usuário atual, com confirmação do Windows quando necessária.
 6. Abra `https://meu-site.test`. Portas HTTP, HTTPS e de administração do gateway também são configuráveis.
 
 Também é possível servir arquivos estáticos ou encaminhar um domínio para uma porta local de outra aplicação. A CA local é exclusiva do ambiente, gera e renova os certificados via Caddy e pode ser removida pelo painel. Ela nunca solicita certificados públicos para esses domínios.
+
+## Comandos no terminal
+
+Ao instalar um pacote, **Adicionar a versão ativa ao meu PATH** é opcional e vem desmarcado. O painel do serviço também permite registrar, remover ou reparar essa entrada depois. O app altera apenas o PATH do usuário Windows, sem elevação, e informa a versão e a pasta selecionadas.
+
+O PATH acompanha a **Versão ativa**. Instalar outra versão não muda a ativa; ao selecionar e salvar outra versão instalada, o app substitui a entrada que gerencia. Ao remover a versão ativa, o PATH acompanha a versão restante indicada na confirmação; sem versões restantes, a entrada é removida. Entradas externas, inclusive uma entrada idêntica que já existia antes do registro, são preservadas. Se outra instalação tiver prioridade no PATH do Windows, o painel mostra o caminho encontrado.
+
+Feche e reabra o aplicativo de terminal, incluindo Windows Terminal ou VS Code, para usar o ambiente atualizado. No PHP, o comando `php` mantém a busca padrão de `php.ini`; o painel mostra como usar `php -c` com a configuração gerenciada pelo app. O registro não altera `PHPRC` globalmente. Antes de mover ou apagar um ambiente portátil, remova suas entradas pelo painel e registre novamente no novo local.
+
+Node.js e Composer aparecem como ferramentas de terminal, com estado **Pronto** e seleção de versão. Não possuem processo de fundo, portas ou inicialização automática. O npm e o npx vêm da mesma distribuição do Node.js; o painel mostra a versão incluída. O catálogo oferece duas linhas LTS e a versão corrente do Node.js. Atualizações passam pelo catálogo; evite `npm install -g npm` ou `composer self-update` nas distribuições gerenciadas.
+
+O PATH do Node.js registra os comandos gerenciados, a pasta do runtime ativo e seus comandos globais. Os comandos `npm` e `npx` usam esse `node.exe`, com prefixo global e cache em `data/nodejs/<versão>/` e configuração em `config/nodejs/<versão>/npmrc`. Pacotes globais permanecem ao remover os binários e voltam a ficar disponíveis ao reinstalar e ativar a mesma versão.
+
+O Composer pode ser baixado separadamente; sem PHP ativo, informa **Requer dependência**. Para registrá-lo no PATH, instale e selecione o PHP. Seu comando usa explicitamente o PHP ativo, o `php.ini` gerenciado e o mesmo PHP nos scripts `@php`, sem exigir registro separado do PHP. Trocar PHP ou Composer atualiza o comando na mesma transação do estado e PATH. Desative o registro do Composer antes de remover o último PHP. Estado global e cache ficam em `data/composer/<versão>/`, preservados na remoção.
+
+Cada site Nginx recebe `config/sites/<id>/nginx.conf`, com domínio, pasta pública, FastCGI ou proxy e logs próprios em `logs/sites/<id>/`. No botão **Configuração do site** da linha do domínio, edite regras de rotas, cabeçalhos, cache e limites de upload, visualize o arquivo completo ou restaure os padrões. O app gerencia listeners em loopback, caminhos e conexão com PHP; esses campos são alterados pelos formulários.
+
+Pare o Nginx antes de alterar seus sites. Salvar regras exige Nginx instalado, valida todos os sites com `nginx -t` e mantém uma cópia `.previous`; inicie novamente para aplicar. Regras personalizadas permanecem ao trocar portas ou versões. Remover um domínio desativa sua inclusão, preservando os arquivos de configuração, logs e projeto. A configuração global continua disponível no painel do serviço.
 
 ## Organização dos arquivos
 
@@ -44,6 +62,9 @@ config/<serviço>/<versão>/     Configurações e uma cópia anterior
 data/<serviço>/<versão>/       Dados persistentes, separados por versão
 data/tls/                     Autoridade certificadora e certificados locais
 logs/<serviço>/<versão>/       Logs dos processos e serviços
+config/sites/<id>/            Configuração Nginx gerada por domínio
+config/cli/<ferramenta>/       Comandos de terminal gerenciados
+logs/sites/<id>/              Logs de acesso e erro por domínio
 projects/                     Projetos do usuário
 secrets/                      Credenciais cifradas pelo Windows DPAPI
 backups/                      Estado anterior e recuperação de configurações
@@ -70,9 +91,13 @@ Os testes reais são separados porque baixam aproximadamente 1 GB de distribuiç
 
 ```powershell
 cargo test --manifest-path src-tauri/Cargo.toml --test portable_lifecycle -- --ignored --nocapture --test-threads=1
+cargo test --manifest-path src-tauri/Cargo.toml --test nginx_sites -- --ignored --nocapture
+cargo test --manifest-path src-tauri/Cargo.toml --test toolchains -- --ignored --nocapture
 ```
 
 Eles não escrevem nos hosts nem alteram certificados confiáveis do Windows. A suíte verifica consultas autenticadas em MySQL e PostgreSQL, Redis, PHP por FastCGI, Mailpit, TLS validado pela CA do ambiente, reinício, liberação de portas e preservação dos dados.
+
+O teste `toolchains` baixa duas versões de Node.js e PHP e o Composer; verifica npm/npx, configuração e pacote global local, scripts Composer com o PHP selecionado e preservação dos dados em uma pasta temporária com Unicode. Ele não altera o PATH real; as transações de PATH são testadas com ambiente simulado e chave de registro isolada.
 
 Depois do build, `pnpm test:desktop` verifica o executável real com WebView2, IPC, uma instalação portátil temporária do Mailpit, o editor local e o encerramento da janela. O diretório temporário é removido ao terminar; hosts e certificados confiáveis não são alterados.
 

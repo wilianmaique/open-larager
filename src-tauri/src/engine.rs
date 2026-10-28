@@ -4,7 +4,9 @@ use crate::{
     installer,
     model::*,
     platform::{self, Process},
+    sites,
     storage::{Storage, atomic_write, slash},
+    toolchain, user_path,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -84,6 +86,7 @@ impl Engine {
     pub fn open(root: PathBuf) -> Result<Self> {
         let storage = Storage::open(root)?;
         let settings = storage.load()?;
+        user_path::recover(&storage, &settings)?;
         Ok(Self {
             storage,
             settings: RwLock::new(settings),
@@ -122,7 +125,15 @@ impl Engine {
                     } else if failures.contains_key(&id) {
                         "error"
                     } else if config.active_version.is_some() {
-                        "stopped"
+                        if id.is_daemon() {
+                            "stopped"
+                        } else if id.definition().dependencies.iter().any(|dependency| {
+                            settings.services[dependency].active_version.is_none()
+                        }) {
+                            "dependencyMissing"
+                        } else {
+                            "ready"
+                        }
                     } else {
                         "notInstalled"
                     }
@@ -164,17 +175,29 @@ impl Engine {
     }
     async fn commit_files(
         &self,
-        mut settings: Settings,
+        settings: Settings,
         changes: Vec<(PathBuf, String)>,
     ) -> Result<()> {
-        settings.revision = self
-            .settings
-            .read()
-            .await
+        self.commit_workspace(settings, changes, None).await
+    }
+    async fn commit_workspace(
+        &self,
+        mut settings: Settings,
+        changes: Vec<(PathBuf, String)>,
+        refresh_path: Option<ServiceId>,
+    ) -> Result<()> {
+        let previous = self.settings.read().await.clone();
+        settings.revision = previous
             .revision
             .checked_add(1)
             .ok_or_else(|| invalid("Settings revision overflow"))?;
-        self.storage.transaction(&settings, &changes)?;
+        user_path::transaction(
+            &self.storage,
+            &previous,
+            &mut settings,
+            changes,
+            refresh_path,
+        )?;
         *self.settings.write().await = settings;
         Ok(())
     }
@@ -188,6 +211,15 @@ impl Engine {
         &self,
         id: ServiceId,
         version: String,
+        progress: impl Fn(installer::Progress) + Send + Sync,
+    ) -> Result<()> {
+        self.install_with_path(id, version, false, progress).await
+    }
+    pub async fn install_with_path(
+        &self,
+        id: ServiceId,
+        version: String,
+        add_to_path: bool,
         progress: impl Fn(installer::Progress) + Send + Sync,
     ) -> Result<()> {
         let _operation = self
@@ -247,9 +279,13 @@ impl Engine {
         if service.active_version.is_none() {
             service.active_version = Some(version.clone());
         }
+        if add_to_path {
+            service.add_to_path = true;
+        }
         self.storage.prepare(id, &version)?;
+        toolchain::prepare(&self.storage, id, &version)?;
         let path = self.storage.config(id, &version);
-        let changes = if !path.exists() {
+        let changes = if id.definition().config_name.is_some() && !path.exists() {
             vec![(
                 path,
                 config::generate(&self.storage, id, &version, &settings)?,
@@ -262,6 +298,23 @@ impl Engine {
             return Err(error);
         }
         Ok(())
+    }
+    pub async fn path_status(&self, id: ServiceId) -> Result<user_path::PathStatus> {
+        user_path::status(&self.storage, &*self.settings.read().await, id)
+    }
+    pub async fn set_user_path(&self, id: ServiceId, enabled: bool) -> Result<()> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let mut settings = self.settings.read().await.clone();
+        if enabled && settings.services[&id].active_version.is_none() {
+            return Err(invalid(
+                "Install and select a version before registering PATH",
+            ));
+        }
+        settings.services.get_mut(&id).unwrap().add_to_path = enabled;
+        self.commit_workspace(settings, Vec::new(), Some(id)).await
     }
     pub fn cancel_install(&self, id: ServiceId) -> Result<()> {
         if let Some((active, cancel)) = self
@@ -277,6 +330,11 @@ impl Engine {
         Err(invalid("No matching download is in progress"))
     }
     pub async fn service_action(&self, id: ServiceId, action: &str) -> Result<()> {
+        if !id.is_daemon() {
+            return Err(invalid(
+                "This is a terminal tool; it has no managed background process",
+            ));
+        }
         let _operation = self
             .operation
             .try_lock()
@@ -308,7 +366,7 @@ impl Engine {
         if action == "start" {
             let settings = self.settings.read().await.clone();
             for id in ServiceId::ALL {
-                if settings.services[&id].active_version.is_some() {
+                if id.is_daemon() && settings.services[&id].active_version.is_some() {
                     self.start(id).await?;
                 }
             }
@@ -331,7 +389,8 @@ impl Engine {
         let _operation = self.operation.lock().await;
         let settings = self.settings.read().await.clone();
         for id in ServiceId::ALL {
-            if settings.services[&id].auto_start
+            if id.is_daemon()
+                && settings.services[&id].auto_start
                 && settings.services[&id].active_version.is_some()
                 && let Err(e) = self.start(id).await
             {
@@ -351,6 +410,9 @@ impl Engine {
         }
     }
     async fn start(&self, id: ServiceId) -> Result<()> {
+        if !id.is_daemon() {
+            return Err(invalid("Terminal tools cannot be started as services"));
+        }
         {
             let mut running = self.running.lock().await;
             if let Some(process) = running.get_mut(&id)
@@ -637,6 +699,9 @@ impl Engine {
                     .args(["--adapter", "caddyfile"]);
                 self.caddy_env(&mut cmd);
             }
+            ServiceId::Nodejs | ServiceId::Composer => {
+                return Err(invalid("Terminal tools cannot be started as services"));
+            }
         }
         Ok(cmd)
     }
@@ -745,6 +810,9 @@ impl Engine {
         let current = self.settings.read().await.clone();
         let mut settings = current.clone();
         validate_ports(id, &ports, &settings)?;
+        if auto_start && !id.is_daemon() {
+            return Err(invalid("Terminal tools do not support auto-start"));
+        }
         if let Some(version) = &version
             && !settings.services[&id]
                 .installations
@@ -760,8 +828,9 @@ impl Engine {
         service.active_version = version.clone();
         service.ports = ports;
         service.auto_start = auto_start;
+        sites::validate_upstreams(&settings)?;
         let mut changes = Vec::new();
-        if let Some(version) = version {
+        if let Some(version) = version.filter(|_| id.definition().config_name.is_some()) {
             // Port changes regenerate a managed config; keep one recoverable copy of manual edits.
             let path = self.storage.config(id, &version);
             if current.services[&id].ports != settings.services[&id].ports
@@ -810,6 +879,30 @@ impl Engine {
                         )
                     };
                     changes.push((path, after));
+                }
+            }
+        }
+        if id == ServiceId::Nginx && current.services[&id].ports != settings.services[&id].ports {
+            if self.running.lock().await.contains_key(&ServiceId::Caddy) {
+                return Err(invalid("Stop Caddy before changing the Nginx port"));
+            }
+            for install in &settings.services[&ServiceId::Caddy].installations {
+                changes.push((
+                    self.storage.config(ServiceId::Caddy, &install.version),
+                    config::generate(&self.storage, ServiceId::Caddy, &install.version, &settings)?,
+                ));
+            }
+        }
+        if matches!(id, ServiceId::Nginx | ServiceId::Php | ServiceId::Caddy) {
+            // Per-site roots and user rules survive service port/version changes.
+            for (path, content) in sites::files(&self.storage, &settings)? {
+                if fs::read_to_string(&path).ok().as_deref() != Some(&content) {
+                    if self.running.lock().await.contains_key(&ServiceId::Nginx) {
+                        return Err(invalid(
+                            "Stop Nginx before changing ports used by local sites",
+                        ));
+                    }
+                    changes.push((path, content));
                 }
             }
         }
@@ -875,19 +968,32 @@ impl Engine {
             file.seek(SeekFrom::Start(length.saturating_sub(48 * 1024)))?;
             let mut bytes = Vec::new();
             file.read_to_end(&mut bytes)?;
+            // A bounded tail may start inside a multibyte character. Discard the
+            // incomplete first line before deciding which encoding the log uses.
+            if length > 48 * 1024
+                && let Some(newline) = bytes.iter().position(|byte| *byte == b'\n')
+            {
+                bytes.drain(..=newline);
+            }
             output.push_str(&format!(
                 "\n── {} ──\n{}",
                 path.file_name().unwrap_or_default().to_string_lossy(),
-                String::from_utf8_lossy(&bytes)
+                platform::decode_service_text(&bytes)
             ));
         }
         Ok(output)
     }
     pub async fn read_config(&self, id: ServiceId) -> Result<String> {
+        if id.definition().config_name.is_none() {
+            return Err(invalid("This tool has no service configuration file"));
+        }
         let settings = self.settings.read().await;
         config::read(&self.storage, id, self.active(&settings, id)?)
     }
     pub async fn save_config(&self, id: ServiceId, content: String) -> Result<()> {
+        if id.definition().config_name.is_none() {
+            return Err(invalid("This tool has no service configuration file"));
+        }
         let _operation = self
             .operation
             .try_lock()
@@ -904,6 +1010,11 @@ impl Engine {
             return Err(invalid("Stop the service before editing configuration"));
         }
         let settings = self.settings.read().await;
+        let content = if id == ServiceId::Nginx {
+            sites::attach(&content, &self.storage)?
+        } else {
+            content
+        };
         let version = self.active(&settings, id)?;
         let path = self.storage.config(id, version);
         let candidate = path.with_extension("candidate");
@@ -973,6 +1084,9 @@ impl Engine {
                 self.caddy_env(&mut cmd);
             }
             ServiceId::Redis => return Ok(()), // Redis provides no offline validator; startup reports parser errors.
+            ServiceId::Nodejs | ServiceId::Composer => {
+                return Err(invalid("This tool has no service configuration file"));
+            }
         }
         let output = platform::checked_output(cmd, Duration::from_secs(30)).await?;
         if id == ServiceId::Php && output.to_lowercase().contains("syntax error") {
@@ -1009,6 +1123,21 @@ impl Engine {
             }
         }
         let mut settings = self.settings.read().await.clone();
+        // Rules have their own bounded, validated IPC. A form or toggle cannot
+        // overwrite a newer editor save with a stale snapshot.
+        site.nginx_directives = settings
+            .sites
+            .iter()
+            .find(|s| s.id == site.id)
+            .and_then(|s| s.nginx_directives.clone());
+        if let Some(previous) = settings.sites.iter().find(|s| s.id == site.id)
+            && previous.mode != site.mode
+            && site.nginx_directives.is_some()
+        {
+            return Err(invalid(
+                "Reset custom Nginx rules before changing the project type",
+            ));
+        }
         if settings
             .sites
             .iter()
@@ -1021,7 +1150,9 @@ impl Engine {
                 || site.upstream_port == Some(0)
                 || settings.services[&ServiceId::Caddy]
                     .ports
-                    .contains(&site.upstream_port.unwrap_or(0)))
+                    .contains(&site.upstream_port.unwrap_or(0))
+                || (site.server == SiteServer::Nginx
+                    && site.upstream_port == Some(settings.services[&ServiceId::Nginx].ports[0])))
         {
             return Err(invalid(
                 "Choose a valid upstream port, different from the gateway ports",
@@ -1034,6 +1165,55 @@ impl Engine {
         }
         settings.sites.retain(|s| s.id != site.id);
         settings.sites.push(site);
+        sites::validate_upstreams(&settings)?;
+        self.commit_sites(settings).await
+    }
+    pub async fn read_site_config(&self, id: String) -> Result<sites::SiteConfig> {
+        let settings = self.settings.read().await;
+        let site = settings
+            .sites
+            .iter()
+            .find(|s| s.id == id && s.server == SiteServer::Nginx)
+            .ok_or_else(|| invalid("Nginx domain does not exist"))?;
+        sites::render(&self.storage, site, &settings)
+    }
+    pub async fn preview_site_config(
+        &self,
+        id: String,
+        content: Option<String>,
+    ) -> Result<sites::SiteConfig> {
+        let settings = self.settings.read().await;
+        let mut site = settings
+            .sites
+            .iter()
+            .find(|s| s.id == id && s.server == SiteServer::Nginx)
+            .cloned()
+            .ok_or_else(|| invalid("Nginx domain does not exist"))?;
+        site.nginx_directives = content;
+        sites::render(&self.storage, &site, &settings)
+    }
+    pub async fn save_site_config(&self, id: String, content: Option<String>) -> Result<()> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let mut settings = self.settings.read().await.clone();
+        let site = settings
+            .sites
+            .iter_mut()
+            .find(|s| s.id == id && s.server == SiteServer::Nginx)
+            .ok_or_else(|| invalid("Nginx domain does not exist"))?;
+        site.nginx_directives = content;
+        let site = site.clone();
+        if settings.services[&ServiceId::Nginx]
+            .installations
+            .is_empty()
+        {
+            return Err(invalid(
+                "Install Nginx to validate and save custom site rules",
+            ));
+        }
+        sites::render(&self.storage, &site, &settings)?;
         self.commit_sites(settings).await
     }
     pub async fn remove_site(&self, id: String) -> Result<()> {
@@ -1047,6 +1227,8 @@ impl Engine {
     }
     async fn commit_sites(&self, settings: Settings) -> Result<()> {
         let current = self.settings.read().await.clone();
+        let mut changes = self.nginx_site_changes(&settings).await?;
+        let mut reload = None;
         if let Some(version) = current.services[&ServiceId::Caddy]
             .active_version
             .as_deref()
@@ -1060,29 +1242,67 @@ impl Engine {
                 .await;
             let _ = fs::remove_file(candidate);
             result?;
-            self.commit_files(settings.clone(), vec![(path.clone(), content)])
-                .await?;
-            if self.running.lock().await.contains_key(&ServiceId::Caddy)
-                && let Err(error) = self.reload_gateway(&settings, version, &path).await
-            {
-                self.commit_files(
-                    current.clone(),
-                    vec![(
-                        path.clone(),
-                        config::generate(&self.storage, ServiceId::Caddy, version, &current)?,
-                    )],
-                )
-                .await?;
-                if let Err(rollback) = self.reload_gateway(&current, version, &path).await {
-                    return Err(invalid(format!(
-                        "Gateway reload failed: {error}. Rollback failed: {rollback}"
-                    )));
-                }
-                return Err(error);
-            }
-            return Ok(());
+            changes.push((path.clone(), content));
+            reload = Some((version.to_owned(), path));
         }
-        self.commit(settings).await
+        let rollback: Vec<_> = changes
+            .iter()
+            .map(|(path, _)| (path.clone(), fs::read_to_string(path).unwrap_or_default()))
+            .collect();
+        for (path, _) in &changes {
+            if path.exists() {
+                fs::copy(path, path.with_extension("previous"))?;
+            }
+        }
+        self.commit_files(settings.clone(), changes).await?;
+        if let Some((version, path)) = reload
+            && self.running.lock().await.contains_key(&ServiceId::Caddy)
+            && let Err(error) = self.reload_gateway(&settings, &version, &path).await
+        {
+            self.commit_files(current.clone(), rollback).await?;
+            if let Err(rollback) = self.reload_gateway(&current, &version, &path).await {
+                return Err(invalid(format!(
+                    "Gateway reload failed: {error}. Rollback failed: {rollback}"
+                )));
+            }
+            return Err(error);
+        }
+        Ok(())
+    }
+    async fn nginx_site_changes(&self, settings: &Settings) -> Result<Vec<(PathBuf, String)>> {
+        let mut changes = sites::files(&self.storage, settings)?;
+        for install in &settings.services[&ServiceId::Nginx].installations {
+            let path = self.storage.config(ServiceId::Nginx, &install.version);
+            let main = config::read(&self.storage, ServiceId::Nginx, &install.version)?;
+            changes.push((path, sites::attach(&main, &self.storage)?));
+        }
+        changes.retain(|(path, content)| fs::read_to_string(path).ok().as_ref() != Some(content));
+        if changes.is_empty() {
+            return Ok(changes);
+        }
+        if self.running.lock().await.contains_key(&ServiceId::Nginx) {
+            return Err(invalid(
+                "Stop Nginx before changing local site configuration",
+            ));
+        }
+        for install in &settings.services[&ServiceId::Nginx].installations {
+            self.initialize(ServiceId::Nginx, &install.version).await?;
+            let main = config::read(&self.storage, ServiceId::Nginx, &install.version)?;
+            let candidate = self
+                .storage
+                .config_dir(ServiceId::Nginx, &install.version)
+                .join("sites.candidate");
+            atomic_write(
+                &candidate,
+                sites::inline(&main, &self.storage, settings)?.as_bytes(),
+            )?;
+            let result = self
+                .validate_config(ServiceId::Nginx, &install.version, &candidate)
+                .await;
+            let _ = fs::remove_file(candidate);
+            result?;
+        }
+        Ok(changes)
     }
     async fn reload_gateway(&self, settings: &Settings, version: &str, path: &Path) -> Result<()> {
         let mut cmd = platform::command(

@@ -169,7 +169,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
               ×
             </button>
           </div>,
-          Array.from(document.querySelectorAll('dialog[open]')).at(-1) ?? document.body,
+          (() => {
+            const dialog = Array.from(document.querySelectorAll('dialog[open]')).at(-1);
+            return dialog?.querySelector('[data-notification-host]') ?? dialog ?? document.body;
+          })(),
         )}
     </AppContext.Provider>
   );
@@ -184,4 +187,6 @@ export const descriptionKeys: Record<ServiceId, Key> = {
   redis: 'descriptionRedis',
   mailpit: 'descriptionMailpit',
   caddy: 'descriptionCaddy',
+  nodejs: 'descriptionNodejs',
+  composer: 'descriptionComposer',
 };

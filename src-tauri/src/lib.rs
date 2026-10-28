@@ -6,7 +6,10 @@ pub mod hosts;
 pub mod installer;
 pub mod model;
 pub mod platform;
+pub mod sites;
 pub mod storage;
+pub mod toolchain;
+pub mod user_path;
 
 use engine::Engine;
 use error::Result;
@@ -28,12 +31,24 @@ async fn install_package(
     app: tauri::AppHandle,
     id: ServiceId,
     version: String,
+    add_to_path: Option<bool>,
 ) -> Result<()> {
     engine
-        .install(id, version, move |progress| {
+        .install_with_path(id, version, add_to_path.unwrap_or(false), move |progress| {
             let _ = app.emit("install-progress", progress);
         })
         .await
+}
+#[tauri::command]
+async fn get_path_status(
+    engine: State<'_, Arc<Engine>>,
+    id: ServiceId,
+) -> Result<user_path::PathStatus> {
+    engine.path_status(id).await
+}
+#[tauri::command]
+async fn set_user_path(engine: State<'_, Arc<Engine>>, id: ServiceId, enabled: bool) -> Result<()> {
+    engine.set_user_path(id, enabled).await
 }
 #[tauri::command]
 fn cancel_install(engine: State<'_, Arc<Engine>>, id: ServiceId) -> Result<()> {
@@ -106,6 +121,26 @@ async fn save_site(engine: State<'_, Arc<Engine>>, site: Site) -> Result<()> {
     engine.save_site(site).await
 }
 #[tauri::command]
+async fn read_site_config(engine: State<'_, Arc<Engine>>, id: String) -> Result<sites::SiteConfig> {
+    engine.read_site_config(id).await
+}
+#[tauri::command]
+async fn preview_site_config(
+    engine: State<'_, Arc<Engine>>,
+    id: String,
+    content: Option<String>,
+) -> Result<sites::SiteConfig> {
+    engine.preview_site_config(id, content).await
+}
+#[tauri::command]
+async fn save_site_config(
+    engine: State<'_, Arc<Engine>>,
+    id: String,
+    content: Option<String>,
+) -> Result<()> {
+    engine.save_site_config(id, content).await
+}
+#[tauri::command]
 async fn remove_site(engine: State<'_, Arc<Engine>>, id: String) -> Result<()> {
     engine.remove_site(id).await
 }
@@ -158,6 +193,15 @@ pub fn run() {
             }
         }
     }
+    #[cfg(windows)]
+    match platform::relaunch_unelevated() {
+        Ok(true) => return,
+        Ok(false) => {}
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -179,6 +223,8 @@ pub fn run() {
             get_snapshot,
             get_catalog,
             install_package,
+            get_path_status,
+            set_user_path,
             cancel_install,
             service_action,
             stack_action,
@@ -190,6 +236,9 @@ pub fn run() {
             reveal_credentials,
             save_preferences,
             save_site,
+            read_site_config,
+            preview_site_config,
+            save_site_config,
             remove_site,
             apply_hosts,
             certificate_action,

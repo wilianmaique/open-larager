@@ -15,6 +15,17 @@ pub fn ensure(storage: &Storage, id: ServiceId, version: &str, settings: &Settin
     if !path.exists() || id == ServiceId::Caddy {
         atomic_write(&path, generate(storage, id, version, settings)?.as_bytes())?;
     }
+    if id == ServiceId::Nginx {
+        for (file, content) in crate::sites::files(storage, settings)? {
+            atomic_write(&file, content.as_bytes())?;
+        }
+        let before = fs::read_to_string(&path)?;
+        let after = crate::sites::attach(&before, storage)?;
+        if before != after {
+            atomic_write(&path.with_extension("previous"), before.as_bytes())?;
+            atomic_write(&path, after.as_bytes())?;
+        }
+    }
     Ok(())
 }
 
@@ -35,10 +46,13 @@ pub fn generate(
     let projects = storage.root.join("projects");
     let config_dir = storage.config_dir(id, version);
     let php_port = settings.services[&ServiceId::Php].ports[0];
-    Ok(match id {
+    let generated = match id {
         ServiceId::Php => format!(
             "; Managed defaults. Stop PHP before editing.\n[PHP]\nextension_dir={}\ndate.timezone=UTC\nmemory_limit=256M\nmax_execution_time=120\nupload_max_filesize=64M\npost_max_size=64M\ndisplay_errors=On\nlog_errors=On\nerror_log={}\ncgi.force_redirect=0\ncgi.fix_pathinfo=1\nexpose_php=Off\nextension=curl\nextension=fileinfo\nextension=mbstring\nextension=openssl\nextension=pdo_mysql\nextension=pdo_pgsql\nextension=pgsql\nextension=mysqli\nextension=zip\n[Session]\nsession.save_path={}\n[mail function]\nSMTP=127.0.0.1\nsmtp_port={}\n",
-            quote(&package.join("ext")),
+            // PHP's Windows extension loader needs an ANSI-compatible DLL path.
+            quote(Path::new(&crate::platform::runtime_path(
+                &package.join("ext")
+            )?)),
             quote(&logs.join("php-error.log")),
             quote(&data),
             settings.services[&ServiceId::Mailpit].ports[0]
@@ -131,6 +145,10 @@ CustomLog {} common
             }
             for site in sites {
                 out.push_str(&format!("https://{}:{} {{\n    bind 127.0.0.1\n    tls internal\n    encode zstd gzip\n", site.hostname, ports[1]));
+                if site.server == crate::model::SiteServer::Nginx {
+                    out.push_str(&format!("    reverse_proxy 127.0.0.1:{} {{\n        header_up Host {}\n    }}\n}}\n\n", settings.services[&ServiceId::Nginx].ports[0], site.hostname));
+                    continue;
+                }
                 match site.mode {
                     SiteMode::Static => out.push_str(&format!(
                         "    root * {}\n    file_server\n",
@@ -151,7 +169,15 @@ CustomLog {} common
             }
             out
         }
-    })
+        ServiceId::Nodejs | ServiceId::Composer => {
+            return Err(invalid("This tool has no service configuration file"));
+        }
+    };
+    if id == ServiceId::Nginx {
+        crate::sites::attach(&generated, storage)
+    } else {
+        Ok(generated)
+    }
 }
 
 pub fn read(storage: &Storage, id: ServiceId, version: &str) -> Result<String> {

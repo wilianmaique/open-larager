@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { refreshToolchains } from './refresh-toolchains.mjs';
 
 const headers = { 'User-Agent': 'OpenLarager-catalog/0.1', Accept: 'application/vnd.github+json' };
 async function request(url) {
@@ -161,6 +162,8 @@ await add({
   source: 'Oracle / MySQL',
   sourceUrl: 'https://dev.mysql.com/downloads/mysql/',
 });
+
+await refreshToolchains({ json, text, add });
 
 const output = fileURLToPath(new URL('../src-tauri/catalog/packages.json', import.meta.url));
 await mkdir(dirname(output), { recursive: true });

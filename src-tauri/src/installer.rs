@@ -1,7 +1,7 @@
 use crate::{
     catalog::validate_download_url,
     error::{Result, invalid},
-    model::Package,
+    model::{Package, PackageFormat},
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -127,19 +127,27 @@ async fn install_inner(
         downloaded,
         total,
     });
-    tokio::task::spawn_blocking(move || extract(&archive, &extract_to, &extract_cancel))
-        .await
-        .map_err(|e| invalid(e.to_string()))??;
+    match package.format {
+        PackageFormat::Zip => {
+            tokio::task::spawn_blocking(move || extract(&archive, &extract_to, &extract_cancel))
+                .await
+                .map_err(|e| invalid(e.to_string()))??;
+        }
+        PackageFormat::Phar => {
+            fs::create_dir_all(&unpacked)?;
+            fs::rename(&archive, unpacked.join("composer.phar"))?;
+        }
+    }
     if cancelled.load(Ordering::Relaxed) {
         return Err(invalid("Installation cancelled"));
     }
     let content = unpacked.join(&package.archive_root);
-    let executable = content.join(package.service.executable());
-    if !executable.is_file() {
-        return Err(invalid(format!(
-            "Expected executable is missing: {}",
-            package.service.executable()
-        )));
+    for required in &package.service.definition().required_files {
+        if !content.join(required).is_file() {
+            return Err(invalid(format!(
+                "Expected package file is missing: {required}"
+            )));
+        }
     }
     fs::create_dir_all(
         destination
@@ -271,6 +279,8 @@ mod tests {
             size: 0,
             community: false,
             verification: "test".into(),
+            format: PackageFormat::Zip,
+            bundled_tools: Default::default(),
         };
         assert!(
             install(

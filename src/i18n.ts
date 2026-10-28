@@ -1,5 +1,72 @@
 import type { Locale } from './types';
 export const en = {
+  dependencyMissing: 'Dependency required',
+  dependencyPathInUse:
+    'Disable the user PATH registration for {names} before removing this last runtime version.',
+  ready: 'Ready',
+  terminalTool: 'Terminal',
+  terminalToolHelp:
+    'Use this tool in your terminal. Select an active version and optionally register it in your user PATH.',
+  nodeNpmHelp:
+    'npm and npx are included with Node.js and follow its active version. Global packages, npm configuration and cache stay outside the runtime binaries, separated by version.',
+  composerPhpHelp:
+    'Composer uses the active PHP {version} with the app’s php.ini, including PHP scripts it starts. Changing PHP updates the launcher. PHP does not need its own PATH registration.',
+  toolDependencyRequired:
+    'Install and select PHP before registering Composer in PATH. Downloads remain optional and separate.',
+  managePhp: 'Manage PHP',
+  bundledTool: 'Included: {name} {version}',
+  descriptionNodejs: 'Node.js with its matching npm and npx.',
+  descriptionComposer: 'PHP dependencies with the active PHP version.',
+  pathInstallOption: 'Add the active version to my user PATH',
+  pathInstallHelp:
+    'PATH will use {name} {version}. Installing another version keeps the active version; change Active version to switch. Optional, for this Windows user only.',
+  userPathTitle: 'Terminal · user PATH',
+  userPathHelp:
+    'One entry follows this service’s active version. Switching versions replaces the entry; disabling removes only entries added by this app. Other installations are preserved.',
+  pathFollowActive: 'Register active {name} in user PATH',
+  pathVersion: 'Active version for PATH: {name} {version}',
+  pathUpdated: 'User PATH updated. Reopen your terminal.',
+  pathNewTerminal:
+    'Close and reopen your terminal application, including Windows Terminal or VS Code. Existing processes keep their previous environment.',
+  pathConflict:
+    'Another {command} appears earlier in the Windows PATH. It may take priority; this app keeps that installation untouched.',
+  pathExternal:
+    'This entry was already in your PATH. Turning this option off preserves that pre-existing entry.',
+  pathMissing:
+    'The selected directory is missing from your user PATH. Register it again to repair the entry.',
+  pathRepair: 'Repair PATH entry',
+  pathPhpConfig:
+    'PHP in the terminal uses its standard php.ini lookup. To also use the app’s managed configuration, run:',
+  pathRemoveFallback: 'PATH will follow the remaining active version: {name} {version}.',
+  pathRemoveLast: 'The app’s PATH entry will also be removed when the last version is uninstalled.',
+  nginxConfigHelp:
+    'Global Nginx configuration for this version. Edit each domain with Site configuration on the Domains & HTTPS page. Stop Nginx before saving; a previous copy is kept.',
+  siteConfiguration: 'Site configuration',
+  siteServer: 'Web server',
+  siteServerNginx: 'Nginx + HTTPS',
+  siteServerCaddy: 'Caddy directly',
+  siteServerNginxHelp:
+    'Generates a separate Nginx configuration for this domain. Caddy provides HTTPS. Install and start Nginx, Caddy and PHP for PHP applications.',
+  siteServerCaddyHelp:
+    'Serves this site through Caddy. PHP applications also need the PHP service.',
+  siteResetBeforeType:
+    'Reset custom Nginx rules in the site editor before changing the project type.',
+  siteStopNginx:
+    'Stop Nginx before saving, enabling or removing Nginx sites. Start it again to apply changes.',
+  siteNginxNeeded: 'Nginx sites need Nginx running. Caddy provides HTTPS; PHP sites also need PHP.',
+  manageNginx: 'Manage Nginx',
+  siteConfigHelp:
+    'Edit routing, headers, cache and upload limits. The app manages the listener, domain, project root, logs and PHP handler. Preview shows the complete generated file.',
+  siteRules: 'Edit rules',
+  siteGeneratedConfig: 'Preview full configuration',
+  siteResetRules: 'Restore defaults',
+  siteGenerated: 'Default rules',
+  siteCustomized: 'Custom rules',
+  siteInstallToValidate:
+    'Install Nginx to validate and save edited rules. The base configuration is already generated.',
+  siteValidationHelp:
+    'Saving runs nginx -t and keeps the previous configuration. Changes apply the next time Nginx starts.',
+  siteConfigSaved: 'Site configuration validated and saved',
   'nav.overview': 'Overview',
   'nav.services': 'Services',
   'nav.domains': 'Domains & HTTPS',
@@ -227,6 +294,73 @@ export type Key = keyof typeof en;
 type Dictionary = Record<Key, string>;
 
 const pt: Dictionary = {
+  dependencyMissing: 'Requer dependência',
+  dependencyPathInUse:
+    'Desative o registro de {names} no PATH do usuário antes de remover esta última versão do runtime.',
+  ready: 'Pronto',
+  terminalTool: 'Terminal',
+  terminalToolHelp:
+    'Use esta ferramenta no terminal. Escolha a versão ativa e, se desejar, registre-a no PATH do usuário.',
+  nodeNpmHelp:
+    'npm e npx acompanham a versão ativa do Node.js. Pacotes globais, configuração do npm e cache ficam separados dos binários e por versão.',
+  composerPhpHelp:
+    'O Composer usa o PHP ativo {version} com o php.ini do app, inclusive nos scripts PHP que inicia. Trocar PHP atualiza o comando. O PHP não precisa de registro próprio no PATH.',
+  toolDependencyRequired:
+    'Instale e selecione o PHP antes de registrar o Composer no PATH. Os downloads continuam opcionais e separados.',
+  managePhp: 'Gerenciar PHP',
+  bundledTool: 'Incluído: {name} {version}',
+  descriptionNodejs: 'Node.js com npm e npx da mesma distribuição.',
+  descriptionComposer: 'Dependências PHP com a versão ativa do PHP.',
+  pathInstallOption: 'Adicionar a versão ativa ao meu PATH',
+  pathInstallHelp:
+    'O PATH usará {name} {version}. Instalar outra versão mantém a versão ativa; altere Versão ativa para trocar. Opcional, apenas para este usuário do Windows.',
+  userPathTitle: 'Terminal · PATH do usuário',
+  userPathHelp:
+    'Uma entrada acompanha a versão ativa deste serviço. Ao trocar a versão, a entrada é substituída; ao desativar, apenas entradas adicionadas pelo app são removidas. Outras instalações são preservadas.',
+  pathFollowActive: 'Registrar {name} ativo no PATH do usuário',
+  pathVersion: 'Versão ativa para o PATH: {name} {version}',
+  pathUpdated: 'PATH do usuário atualizado. Reabra o terminal.',
+  pathNewTerminal:
+    'Feche e reabra o aplicativo de terminal, incluindo Windows Terminal ou VS Code. Processos abertos mantêm o ambiente anterior.',
+  pathConflict:
+    'Outro {command} aparece antes no PATH do Windows e pode ter prioridade. O app preserva essa instalação.',
+  pathExternal:
+    'Esta entrada já estava no seu PATH. Desativar esta opção preserva a entrada preexistente.',
+  pathMissing:
+    'A pasta selecionada não está no PATH do usuário. Registre novamente para reparar a entrada.',
+  pathRepair: 'Reparar entrada no PATH',
+  pathPhpConfig:
+    'O PHP no terminal usa a busca padrão de php.ini. Para usar também a configuração gerenciada pelo app, execute:',
+  pathRemoveFallback: 'O PATH acompanhará a versão ativa restante: {name} {version}.',
+  pathRemoveLast: 'A entrada do app no PATH também será removida ao desinstalar a última versão.',
+  nginxConfigHelp:
+    'Configuração global desta versão do Nginx. Edite cada domínio em Configuração do site, na página Domínios e HTTPS. Pare o Nginx antes de salvar; uma cópia anterior será mantida.',
+  siteConfiguration: 'Configuração do site',
+  siteServer: 'Servidor web',
+  siteServerNginx: 'Nginx + HTTPS',
+  siteServerCaddy: 'Caddy direto',
+  siteServerNginxHelp:
+    'Gera uma configuração Nginx própria para este domínio. O Caddy cuida do HTTPS. Instale e inicie Nginx, Caddy e, para aplicações PHP, o PHP.',
+  siteServerCaddyHelp: 'Serve o site pelo Caddy. Aplicações PHP também precisam do serviço PHP.',
+  siteResetBeforeType:
+    'Restaure as regras padrão no editor do site antes de mudar o tipo de projeto.',
+  siteStopNginx:
+    'Pare o Nginx antes de salvar, ativar ou remover sites Nginx. Inicie novamente para aplicar as mudanças.',
+  siteNginxNeeded:
+    'Sites Nginx precisam do Nginx em execução. O Caddy fornece HTTPS; sites PHP também precisam do PHP.',
+  manageNginx: 'Gerenciar Nginx',
+  siteConfigHelp:
+    'Edite rotas, cabeçalhos, cache e limites de upload. O app gerencia a porta, domínio, pasta pública, logs e execução do PHP. A prévia mostra o arquivo completo gerado.',
+  siteRules: 'Editar regras',
+  siteGeneratedConfig: 'Ver configuração completa',
+  siteResetRules: 'Restaurar padrão',
+  siteGenerated: 'Regras padrão',
+  siteCustomized: 'Regras personalizadas',
+  siteInstallToValidate:
+    'Instale o Nginx para validar e salvar regras editadas. A configuração base já foi gerada.',
+  siteValidationHelp:
+    'Ao salvar, o app executa nginx -t e preserva a configuração anterior. As mudanças valem na próxima inicialização do Nginx.',
+  siteConfigSaved: 'Configuração do site validada e salva',
   'nav.overview': 'Visão geral',
   'nav.services': 'Serviços',
   'nav.domains': 'Domínios e HTTPS',
@@ -449,6 +583,73 @@ const pt: Dictionary = {
 };
 
 const es: Dictionary = {
+  dependencyMissing: 'Requiere dependencia',
+  dependencyPathInUse:
+    'Desactiva el registro de {names} en el PATH del usuario antes de eliminar esta última versión del runtime.',
+  ready: 'Listo',
+  terminalTool: 'Terminal',
+  terminalToolHelp:
+    'Usa esta herramienta en la terminal. Elige una versión activa y, si quieres, regístrala en el PATH del usuario.',
+  nodeNpmHelp:
+    'npm y npx siguen la versión activa de Node.js. Los paquetes globales, la configuración de npm y la caché se guardan fuera de los binarios, separados por versión.',
+  composerPhpHelp:
+    'Composer usa PHP activo {version} con el php.ini de la app, también en los scripts PHP que inicia. Cambiar PHP actualiza el comando. PHP no necesita registrarse en PATH.',
+  toolDependencyRequired:
+    'Instala y selecciona PHP antes de registrar Composer en PATH. Las descargas siguen siendo opcionales y separadas.',
+  managePhp: 'Gestionar PHP',
+  bundledTool: 'Incluido: {name} {version}',
+  descriptionNodejs: 'Node.js con su npm y npx correspondientes.',
+  descriptionComposer: 'Dependencias PHP con la versión activa de PHP.',
+  pathInstallOption: 'Añadir la versión activa a mi PATH',
+  pathInstallHelp:
+    'PATH usará {name} {version}. Instalar otra versión mantiene la activa; cambia Versión activa para sustituirla. Opcional, solo para este usuario de Windows.',
+  userPathTitle: 'Terminal · PATH del usuario',
+  userPathHelp:
+    'Una entrada sigue la versión activa del servicio. Cambiar de versión sustituye la entrada; desactivar elimina solo las entradas añadidas por la app. Se conservan otras instalaciones.',
+  pathFollowActive: 'Registrar {name} activo en el PATH del usuario',
+  pathVersion: 'Versión activa para PATH: {name} {version}',
+  pathUpdated: 'PATH del usuario actualizado. Abre de nuevo el terminal.',
+  pathNewTerminal:
+    'Cierra y vuelve a abrir la aplicación de terminal, incluido Windows Terminal o VS Code. Los procesos abiertos conservan el entorno anterior.',
+  pathConflict:
+    'Otro {command} aparece antes en el PATH de Windows y puede tener prioridad. La app conserva esa instalación.',
+  pathExternal:
+    'Esta entrada ya estaba en tu PATH. Desactivar esta opción conserva la entrada existente.',
+  pathMissing: 'La carpeta seleccionada falta en tu PATH. Regístrala de nuevo para repararla.',
+  pathRepair: 'Reparar entrada de PATH',
+  pathPhpConfig:
+    'PHP en el terminal utiliza su búsqueda habitual de php.ini. Para usar la configuración de la app, ejecuta:',
+  pathRemoveFallback: 'PATH seguirá la versión activa restante: {name} {version}.',
+  pathRemoveLast:
+    'La entrada de PATH de la app también se eliminará al desinstalar la última versión.',
+  nginxConfigHelp:
+    'Configuración global de esta versión de Nginx. Edita cada dominio en Configuración del sitio, en Dominios y HTTPS. Detén Nginx antes de guardar; se conserva una copia anterior.',
+  siteConfiguration: 'Configuración del sitio',
+  siteServer: 'Servidor web',
+  siteServerNginx: 'Nginx + HTTPS',
+  siteServerCaddy: 'Caddy directo',
+  siteServerNginxHelp:
+    'Genera una configuración Nginx para este dominio. Caddy proporciona HTTPS. Instala e inicia Nginx, Caddy y PHP para aplicaciones PHP.',
+  siteServerCaddyHelp:
+    'Sirve el sitio con Caddy. Las aplicaciones PHP también necesitan el servicio PHP.',
+  siteResetBeforeType: 'Restablece las reglas Nginx antes de cambiar el tipo de proyecto.',
+  siteStopNginx:
+    'Detén Nginx antes de guardar, activar o eliminar sus sitios. Inícialo de nuevo para aplicar los cambios.',
+  siteNginxNeeded:
+    'Los sitios Nginx necesitan Nginx en ejecución. Caddy proporciona HTTPS; los sitios PHP también necesitan PHP.',
+  manageNginx: 'Gestionar Nginx',
+  siteConfigHelp:
+    'Edita rutas, cabeceras, caché y límites de subida. La app gestiona el puerto, dominio, carpeta, registros y PHP. La vista previa muestra el archivo completo.',
+  siteRules: 'Editar reglas',
+  siteGeneratedConfig: 'Ver configuración completa',
+  siteResetRules: 'Restaurar valores predeterminados',
+  siteGenerated: 'Reglas predeterminadas',
+  siteCustomized: 'Reglas personalizadas',
+  siteInstallToValidate:
+    'Instala Nginx para validar y guardar reglas editadas. La configuración base ya está generada.',
+  siteValidationHelp:
+    'Al guardar se ejecuta nginx -t y se conserva la configuración anterior. Los cambios se aplican al iniciar Nginx.',
+  siteConfigSaved: 'Configuración del sitio validada y guardada',
   'nav.overview': 'Resumen',
   'nav.services': 'Servicios',
   'nav.domains': 'Dominios y HTTPS',
@@ -673,6 +874,61 @@ const es: Dictionary = {
 };
 
 const zh: Dictionary = {
+  dependencyMissing: '需要依赖项',
+  dependencyPathInUse: '删除最后一个运行时版本前，请先取消 {names} 的用户 PATH 注册。',
+  ready: '就绪',
+  terminalTool: '终端',
+  terminalToolHelp: '在终端使用此工具。选择活动版本，并按需将其注册到用户 PATH。',
+  nodeNpmHelp:
+    'npm 和 npx 随 Node.js 活动版本切换。全局包、npm 配置和缓存按版本保存，与运行时二进制文件分开。',
+  composerPhpHelp:
+    'Composer 使用活动 PHP {version} 和应用的 php.ini，启动的 PHP 脚本也使用此配置。切换 PHP 会更新启动器。无需单独将 PHP 注册到 PATH。',
+  toolDependencyRequired: '将 Composer 注册到 PATH 前，请先安装并选择 PHP。各项下载仍需单独选择。',
+  managePhp: '管理 PHP',
+  bundledTool: '包含：{name} {version}',
+  descriptionNodejs: 'Node.js 及其配套的 npm 和 npx。',
+  descriptionComposer: '使用活动 PHP 版本管理 PHP 依赖。',
+  pathInstallOption: '将当前版本添加到用户 PATH',
+  pathInstallHelp:
+    'PATH 将使用 {name} {version}。安装其他版本不会更改当前版本；请通过“当前版本”切换。可选，仅适用于当前 Windows 用户。',
+  userPathTitle: '终端 · 用户 PATH',
+  userPathHelp:
+    '仅用一项跟随此服务的当前版本。切换版本时替换该项；禁用时仅移除应用添加的项。保留其他安装的配置。',
+  pathFollowActive: '在用户 PATH 中注册当前 {name}',
+  pathVersion: 'PATH 对应的当前版本：{name} {version}',
+  pathUpdated: '用户 PATH 已更新。请重新打开终端。',
+  pathNewTerminal:
+    '请关闭并重新打开终端应用，包括 Windows Terminal 或 VS Code。现有进程仍使用之前的环境。',
+  pathConflict: 'Windows PATH 中另一个 {command} 排在前面，可能优先运行。本应用会保留该安装。',
+  pathExternal: '此项原本就存在于 PATH 中。关闭选项时会保留原有项。',
+  pathMissing: '用户 PATH 中缺少所选目录。请重新注册以修复。',
+  pathRepair: '修复 PATH 项',
+  pathPhpConfig: '终端中的 PHP 使用标准 php.ini 搜索规则。若要使用应用管理的配置，请运行：',
+  pathRemoveFallback: 'PATH 将使用剩余的当前版本：{name} {version}。',
+  pathRemoveLast: '卸载最后一个版本时，也会移除应用添加的 PATH 项。',
+  nginxConfigHelp:
+    '此 Nginx 版本的全局配置。请在域名与 HTTPS 页面中使用站点配置来编辑各个域名。保存前请停止 Nginx，系统会保留上一份副本。',
+  siteConfiguration: '站点配置',
+  siteServer: 'Web 服务器',
+  siteServerNginx: 'Nginx + HTTPS',
+  siteServerCaddy: '直接使用 Caddy',
+  siteServerNginxHelp:
+    '为此域名生成独立的 Nginx 配置，由 Caddy 提供 HTTPS。请安装并启动 Nginx、Caddy，PHP 应用还需要 PHP。',
+  siteServerCaddyHelp: '通过 Caddy 提供站点服务。PHP 应用还需要 PHP 服务。',
+  siteResetBeforeType: '更改项目类型前，请在站点编辑器中恢复默认规则。',
+  siteStopNginx: '保存、启用或删除 Nginx 站点前，请先停止 Nginx。重新启动后更改生效。',
+  siteNginxNeeded: 'Nginx 站点需要运行 Nginx。Caddy 提供 HTTPS，PHP 站点还需要 PHP。',
+  manageNginx: '管理 Nginx',
+  siteConfigHelp:
+    '编辑路由、响应头、缓存和上传限制。应用管理监听端口、域名、项目根目录、日志及 PHP 处理程序。预览显示完整生成文件。',
+  siteRules: '编辑规则',
+  siteGeneratedConfig: '预览完整配置',
+  siteResetRules: '恢复默认规则',
+  siteGenerated: '默认规则',
+  siteCustomized: '自定义规则',
+  siteInstallToValidate: '安装 Nginx 后即可验证并保存编辑的规则。基础配置已生成。',
+  siteValidationHelp: '保存时运行 nginx -t 并保留上一份配置。下次启动 Nginx 时更改生效。',
+  siteConfigSaved: '站点配置已验证并保存',
   'nav.overview': '概览',
   'nav.services': '服务',
   'nav.domains': '域名与 HTTPS',
@@ -886,6 +1142,71 @@ const zh: Dictionary = {
 };
 
 const hi: Dictionary = {
+  dependencyMissing: 'डिपेंडेंसी आवश्यक',
+  dependencyPathInUse:
+    'रनटाइम का यह अंतिम संस्करण हटाने से पहले {names} का उपयोगकर्ता PATH पंजीकरण बंद करें।',
+  ready: 'तैयार',
+  terminalTool: 'टर्मिनल',
+  terminalToolHelp:
+    'इस टूल का उपयोग टर्मिनल में करें। सक्रिय संस्करण चुनें और चाहें तो उसे उपयोगकर्ता PATH में जोड़ें।',
+  nodeNpmHelp:
+    'npm और npx सक्रिय Node.js संस्करण के साथ बदलते हैं। ग्लोबल पैकेज, npm सेटिंग और कैश रनटाइम बाइनरी से अलग, हर संस्करण के लिए रखे जाते हैं।',
+  composerPhpHelp:
+    'Composer सक्रिय PHP {version} और ऐप की php.ini का उपयोग करता है, शुरू की गई PHP स्क्रिप्ट में भी। PHP बदलने पर लॉन्चर अपडेट होता है। PHP को अलग से PATH में जोड़ना आवश्यक नहीं है।',
+  toolDependencyRequired:
+    'Composer को PATH में जोड़ने से पहले PHP इंस्टॉल करके चुनें। डाउनलोड वैकल्पिक और अलग रहते हैं।',
+  managePhp: 'PHP प्रबंधित करें',
+  bundledTool: 'शामिल: {name} {version}',
+  descriptionNodejs: 'Node.js के साथ उसी वितरण के npm और npx।',
+  descriptionComposer: 'सक्रिय PHP संस्करण से PHP डिपेंडेंसी प्रबंधन।',
+  pathInstallOption: 'सक्रिय संस्करण को मेरे PATH में जोड़ें',
+  pathInstallHelp:
+    'PATH में {name} {version} इस्तेमाल होगा। दूसरा संस्करण इंस्टॉल करने से सक्रिय संस्करण नहीं बदलेगा; बदलने के लिए सक्रिय संस्करण चुनें। वैकल्पिक, केवल इस Windows उपयोगकर्ता के लिए।',
+  userPathTitle: 'टर्मिनल · उपयोगकर्ता PATH',
+  userPathHelp:
+    'एक प्रविष्टि इस सेवा के सक्रिय संस्करण का अनुसरण करती है। संस्करण बदलने पर प्रविष्टि बदलती है; बंद करने पर केवल ऐप की जोड़ी प्रविष्टियाँ हटती हैं। अन्य इंस्टॉलेशन सुरक्षित रहते हैं।',
+  pathFollowActive: 'सक्रिय {name} को उपयोगकर्ता PATH में जोड़ें',
+  pathVersion: 'PATH के लिए सक्रिय संस्करण: {name} {version}',
+  pathUpdated: 'उपयोगकर्ता PATH अपडेट हुआ। टर्मिनल फिर खोलें।',
+  pathNewTerminal:
+    'Windows Terminal या VS Code सहित टर्मिनल ऐप बंद करके फिर खोलें। खुले प्रोसेस पुराना वातावरण बनाए रखते हैं।',
+  pathConflict:
+    'Windows PATH में दूसरा {command} पहले है और उसे प्राथमिकता मिल सकती है। ऐप उस इंस्टॉलेशन को नहीं बदलता।',
+  pathExternal:
+    'यह प्रविष्टि पहले से आपके PATH में थी। विकल्प बंद करने पर पुरानी प्रविष्टि बनी रहती है।',
+  pathMissing: 'चुना फ़ोल्डर उपयोगकर्ता PATH में नहीं है। सुधारने के लिए फिर जोड़ें।',
+  pathRepair: 'PATH प्रविष्टि सुधारें',
+  pathPhpConfig:
+    'टर्मिनल में PHP सामान्य php.ini खोज का इस्तेमाल करता है। ऐप की कॉन्फ़िगरेशन भी इस्तेमाल करने के लिए चलाएँ:',
+  pathRemoveFallback: 'PATH बचे सक्रिय संस्करण का अनुसरण करेगा: {name} {version}।',
+  pathRemoveLast: 'अंतिम संस्करण हटाने पर ऐप की PATH प्रविष्टि भी हटेगी।',
+  nginxConfigHelp:
+    'इस Nginx संस्करण की वैश्विक कॉन्फ़िगरेशन। डोमेन और HTTPS पेज पर साइट कॉन्फ़िगरेशन से प्रत्येक डोमेन संपादित करें। सहेजने से पहले Nginx रोकें; पिछली प्रति रखी जाएगी।',
+  siteConfiguration: 'साइट कॉन्फ़िगरेशन',
+  siteServer: 'वेब सर्वर',
+  siteServerNginx: 'Nginx + HTTPS',
+  siteServerCaddy: 'सीधे Caddy',
+  siteServerNginxHelp:
+    'इस डोमेन के लिए अलग Nginx कॉन्फ़िगरेशन बनता है। Caddy HTTPS देता है। Nginx, Caddy और PHP ऐप के लिए PHP इंस्टॉल करके शुरू करें।',
+  siteServerCaddyHelp: 'Caddy से साइट चलाएँ। PHP ऐप के लिए PHP सेवा भी चाहिए।',
+  siteResetBeforeType: 'प्रोजेक्ट का प्रकार बदलने से पहले साइट एडिटर में डिफ़ॉल्ट नियम बहाल करें।',
+  siteStopNginx:
+    'Nginx साइट सहेजने, चालू करने या हटाने से पहले Nginx रोकें। बदलाव लागू करने के लिए फिर शुरू करें।',
+  siteNginxNeeded:
+    'Nginx साइट के लिए Nginx चलना चाहिए। Caddy HTTPS देता है; PHP साइट के लिए PHP भी चाहिए।',
+  manageNginx: 'Nginx प्रबंधित करें',
+  siteConfigHelp:
+    'रूटिंग, हेडर, कैश और अपलोड सीमा संपादित करें। ऐप पोर्ट, डोमेन, प्रोजेक्ट फ़ोल्डर, लॉग और PHP हैंडलर संभालता है। पूर्वावलोकन में पूरी फ़ाइल दिखती है।',
+  siteRules: 'नियम संपादित करें',
+  siteGeneratedConfig: 'पूरी कॉन्फ़िगरेशन देखें',
+  siteResetRules: 'डिफ़ॉल्ट बहाल करें',
+  siteGenerated: 'डिफ़ॉल्ट नियम',
+  siteCustomized: 'कस्टम नियम',
+  siteInstallToValidate:
+    'संपादित नियम जाँचने और सहेजने के लिए Nginx इंस्टॉल करें। मूल कॉन्फ़िगरेशन बन चुकी है।',
+  siteValidationHelp:
+    'सहेजते समय nginx -t चलता है और पिछली कॉन्फ़िगरेशन रखी जाती है। अगली बार Nginx शुरू होने पर बदलाव लागू होंगे।',
+  siteConfigSaved: 'साइट कॉन्फ़िगरेशन जाँचकर सहेजी गई',
   'nav.overview': 'अवलोकन',
   'nav.services': 'सेवाएँ',
   'nav.domains': 'डोमेन और HTTPS',

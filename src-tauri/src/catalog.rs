@@ -18,6 +18,14 @@ pub fn packages() -> Result<Vec<Package>> {
             return Err(invalid("Invalid catalog digest"));
         }
         validate_download_url(&package.url)?;
+        if !package.archive_root.is_empty() {
+            crate::installer::safe_entry(&package.archive_root)?;
+        }
+        if package.format == crate::model::PackageFormat::Phar
+            && (package.service != ServiceId::Composer || !package.archive_root.is_empty())
+        {
+            return Err(invalid("PHAR artifacts require the Composer adapter"));
+        }
     }
     Ok(catalog.packages)
 }
@@ -40,6 +48,8 @@ pub fn validate_download_url(url: &str) -> Result<()> {
         "github.com",
         "release-assets.githubusercontent.com",
         "objects.githubusercontent.com",
+        "nodejs.org",
+        "getcomposer.org",
     ];
     if url.scheme() != "https"
         || !url.username().is_empty()

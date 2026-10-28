@@ -9,7 +9,7 @@ import type { ServiceId } from './types';
 
 export function LogsPage() {
   const { t, snapshot } = useApp();
-  const installed = snapshot.services.filter((s) => s.version);
+  const installed = snapshot.services.filter((s) => s.version && services[s.id].daemon);
   const [selected, setSelected] = useState<ServiceId | ''>(installed[0]?.id ?? '');
   return (
     <>

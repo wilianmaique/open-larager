@@ -22,12 +22,16 @@ import { Checkbox, NumberInput, RadioCard, Switch } from './controls';
 import { call } from './api';
 import { useApp } from './state';
 import type { Site } from './types';
+import { SiteConfigDialog } from './SiteConfigDialog';
 
 export function Domains() {
   const { t, snapshot, run, busy, setSelected } = useApp();
   const [editing, setEditing] = useState<Site | 'new' | null>(null);
   const [certificate, setCertificate] = useState<string | null>(null);
+  const [configuring, setConfiguring] = useState<Site | null>(null);
   const gateway = snapshot.services.find((s) => s.id === 'caddy')!;
+  const nginx = snapshot.services.find((s) => s.id === 'nginx')!;
+  const php = snapshot.services.find((s) => s.id === 'php')!;
   const certificateAction = (action: string) =>
     void run(async () => {
       const result = await call<string>('certificate_action', { action });
@@ -168,6 +172,7 @@ export function Domains() {
                   </span>
                 </div>
                 <span className="tag">
+                  {site.server === 'nginx' ? 'Nginx · ' : 'Caddy · '}
                   {t(
                     site.mode === 'php'
                       ? 'phpSite'
@@ -180,7 +185,7 @@ export function Domains() {
                   title={t('enabled')}
                   aria-label={`${t('enabled')} ${site.hostname}`}
                   checked={site.enabled}
-                  disabled={busy}
+                  disabled={busy || (site.server === 'nginx' && nginx.status === 'running')}
                   onChange={(e) =>
                     void run(
                       () => call('save_site', { site: { ...site, enabled: e.target.checked } }),
@@ -194,16 +199,30 @@ export function Domains() {
                 >
                   <Pencil size={15} />
                 </IconButton>
+                {site.server === 'nginx' && (
+                  <IconButton
+                    label={`${t('siteConfiguration')} ${site.hostname}`}
+                    onClick={() => setConfiguring(site)}
+                  >
+                    <FileCode2 size={15} />
+                  </IconButton>
+                )}
                 <IconButton
                   label={`${t('open')} ${site.hostname}`}
-                  disabled={!site.enabled || gateway.status !== 'running' || !snapshot.hostsSynced}
+                  disabled={
+                    !site.enabled ||
+                    gateway.status !== 'running' ||
+                    !snapshot.hostsSynced ||
+                    (site.server === 'nginx' && nginx.status !== 'running') ||
+                    (site.mode === 'php' && php.status !== 'running')
+                  }
                   onClick={() => void run(() => call('open_site', { id: site.id }))}
                 >
                   <ExternalLink size={15} />
                 </IconButton>
                 <IconButton
                   label={`${t('remove')} ${site.hostname}`}
-                  disabled={busy}
+                  disabled={busy || (site.server === 'nginx' && nginx.status === 'running')}
                   onClick={() =>
                     void run(() => call('remove_site', { id: site.id }), t('domainRemoved'))
                   }
@@ -215,6 +234,13 @@ export function Domains() {
           )}
         </div>
       </section>
+      {snapshot.settings.sites.some((site) => site.server === 'nginx') && (
+        <div className="info-strip site-service-hint">
+          <Info size={16} />
+          <span>{t(nginx.status === 'running' ? 'siteStopNginx' : 'siteNginxNeeded')}</span>
+          <Button onClick={() => setSelected('nginx')}>{t('manageNginx')}</Button>
+        </div>
+      )}
       {snapshot.settings.sites.length > 0 && gateway.status !== 'running' && (
         <div className="info-strip">
           <Info size={16} />
@@ -224,6 +250,7 @@ export function Domains() {
       {editing && (
         <SiteForm site={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />
       )}
+      {configuring && <SiteConfigDialog site={configuring} onClose={() => setConfiguring(null)} />}
       {certificate !== null && (
         <Dialog
           title={t('certificateDetails')}
@@ -239,10 +266,25 @@ export function Domains() {
 }
 
 function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
-  const { t, busy, run } = useApp();
+  const { t, busy, run, snapshot } = useApp();
   const [form, setForm] = useState<Site>(
-    site ?? { id: '', hostname: '', root: '', mode: 'php', upstreamPort: 3000, enabled: true },
+    site
+      ? { ...site, server: site.server ?? 'caddy' }
+      : {
+          id: '',
+          hostname: '',
+          root: '',
+          mode: 'php',
+          upstreamPort: 3000,
+          enabled: true,
+          server: 'nginx',
+          nginxDirectives: null,
+        },
   );
+  const nginxRunning = snapshot.services.some(
+    (service) => service.id === 'nginx' && service.status === 'running',
+  );
+  const blocked = nginxRunning && (form.server === 'nginx' || site?.server === 'nginx');
   const update = <K extends keyof Site>(key: K, value: Site[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
   return (
@@ -280,6 +322,38 @@ function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
           </div>
           <p className="field-help">{t('domainHelp')}</p>
           <fieldset className="mode-fieldset">
+            <legend className="field-label">{t('siteServer')}</legend>
+            <div className="mode-options site-server-options">
+              <RadioCard
+                name="site-server"
+                value="nginx"
+                checked={form.server === 'nginx'}
+                disabled={busy}
+                onChange={() => update('server', 'nginx')}
+              >
+                <span aria-hidden="true">
+                  <ServiceIcon id="nginx" />
+                </span>
+                <span>{t('siteServerNginx')}</span>
+              </RadioCard>
+              <RadioCard
+                name="site-server"
+                value="caddy"
+                checked={form.server === 'caddy'}
+                disabled={busy}
+                onChange={() => update('server', 'caddy')}
+              >
+                <span aria-hidden="true">
+                  <ServiceIcon id="caddy" />
+                </span>
+                <span>{t('siteServerCaddy')}</span>
+              </RadioCard>
+            </div>
+            <p className="field-help">
+              {t(form.server === 'nginx' ? 'siteServerNginxHelp' : 'siteServerCaddyHelp')}
+            </p>
+          </fieldset>
+          <fieldset className="mode-fieldset">
             <legend className="field-label">{t('siteType')}</legend>
             <div className="mode-options">
               {(
@@ -294,7 +368,7 @@ function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
                   name="site-mode"
                   value={value}
                   checked={form.mode === value}
-                  disabled={busy}
+                  disabled={busy || site?.nginxDirectives != null}
                   onChange={() => update('mode', value)}
                 >
                   <Icon size={21} />
@@ -303,6 +377,9 @@ function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
               ))}
             </div>
           </fieldset>
+          {site?.nginxDirectives != null && (
+            <p className="field-help">{t('siteResetBeforeType')}</p>
+          )}
           {form.mode === 'proxy' ? (
             <>
               <label className="field-label" htmlFor="site-port">
@@ -358,12 +435,17 @@ function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
           >
             {t('enabled')}
           </Checkbox>
+          {blocked && (
+            <p className="field-help" role="status">
+              {t('siteStopNginx')}
+            </p>
+          )}
         </div>
         <div className="dialog-actions">
           <Button type="button" onClick={onClose}>
             {t('cancel')}
           </Button>
-          <Button type="submit" variant="primary" disabled={busy}>
+          <Button type="submit" variant="primary" disabled={busy || blocked}>
             <Check size={15} />
             {t('saveDomain')}
           </Button>

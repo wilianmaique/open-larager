@@ -13,10 +13,25 @@ pub enum ServiceId {
     Redis,
     Mailpit,
     Caddy,
+    Nodejs,
+    Composer,
+}
+
+/// Shared with React. Only this compiled registry defines package capabilities.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceDefinition {
+    pub daemon: bool,
+    pub ports: Vec<u16>,
+    pub executable: String,
+    pub cli: String,
+    pub config_name: Option<String>,
+    pub dependencies: Vec<ServiceId>,
+    pub required_files: Vec<String>,
 }
 
 impl ServiceId {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 10] = [
         Self::Php,
         Self::Apache,
         Self::Mysql,
@@ -25,6 +40,8 @@ impl ServiceId {
         Self::Redis,
         Self::Mailpit,
         Self::Caddy,
+        Self::Nodejs,
+        Self::Composer,
     ];
     pub fn key(self) -> &'static str {
         match self {
@@ -36,44 +53,41 @@ impl ServiceId {
             Self::Redis => "redis",
             Self::Mailpit => "mailpit",
             Self::Caddy => "caddy",
+            Self::Nodejs => "nodejs",
+            Self::Composer => "composer",
         }
+    }
+    pub fn definition(self) -> &'static ServiceDefinition {
+        static DEFINITIONS: std::sync::OnceLock<BTreeMap<ServiceId, ServiceDefinition>> =
+            std::sync::OnceLock::new();
+        &DEFINITIONS.get_or_init(|| {
+            serde_json::from_str(include_str!("../catalog/services.json"))
+                .expect("valid compiled service registry")
+        })[&self]
+    }
+    pub fn is_daemon(self) -> bool {
+        self.definition().daemon
     }
     pub fn ports(self) -> Vec<u16> {
-        match self {
-            Self::Php => vec![9000],
-            Self::Apache => vec![8080],
-            Self::Mysql => vec![3306],
-            Self::Postgresql => vec![5432],
-            Self::Nginx => vec![8081],
-            Self::Redis => vec![6379],
-            Self::Mailpit => vec![1025, 8025],
-            Self::Caddy => vec![80, 443, 2019],
-        }
+        self.definition().ports.clone()
     }
     pub fn executable(self) -> &'static str {
-        match self {
-            Self::Php => "php-cgi.exe",
-            Self::Apache => "bin/httpd.exe",
-            Self::Mysql => "bin/mysqld.exe",
-            Self::Postgresql => "bin/postgres.exe",
-            Self::Nginx => "nginx.exe",
-            Self::Redis => "redis-server.exe",
-            Self::Mailpit => "mailpit.exe",
-            Self::Caddy => "caddy.exe",
-        }
+        &self.definition().executable
     }
     pub fn config_name(self) -> &'static str {
-        match self {
-            Self::Php => "php.ini",
-            Self::Apache => "httpd.conf",
-            Self::Mysql => "my.ini",
-            Self::Postgresql => "postgresql.conf",
-            Self::Nginx => "nginx.conf",
-            Self::Redis => "redis.conf",
-            Self::Mailpit => "mailpit.json",
-            Self::Caddy => "Caddyfile",
-        }
+        self.definition().config_name.as_deref().unwrap_or("")
     }
+    pub fn cli_executable(self) -> &'static str {
+        &self.definition().cli
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PackageFormat {
+    #[default]
+    Zip,
+    Phar,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,6 +104,10 @@ pub struct Package {
     #[serde(default)]
     pub community: bool,
     pub verification: String,
+    #[serde(default)]
+    pub format: PackageFormat,
+    #[serde(default)]
+    pub bundled_tools: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,6 +125,8 @@ pub struct ServiceSettings {
     pub installations: Vec<Installation>,
     pub ports: Vec<u16>,
     pub auto_start: bool,
+    #[serde(default)]
+    pub add_to_path: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -115,6 +135,14 @@ pub enum SiteMode {
     Php,
     Static,
     Proxy,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SiteServer {
+    #[default]
+    Caddy,
+    Nginx,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,6 +154,10 @@ pub struct Site {
     pub mode: SiteMode,
     pub upstream_port: Option<u16>,
     pub enabled: bool,
+    #[serde(default)]
+    pub server: SiteServer,
+    #[serde(default)]
+    pub nginx_directives: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,6 +190,7 @@ impl Default for Settings {
                             installations: Vec::new(),
                             ports: id.ports(),
                             auto_start: false,
+                            add_to_path: false,
                         },
                     )
                 })
@@ -222,6 +255,20 @@ pub fn validate_ports(id: ServiceId, ports: &[u16], settings: &Settings) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn registry_capabilities_are_consistent() {
+        for id in ServiceId::ALL {
+            let definition = id.definition();
+            assert_eq!(definition.daemon, !definition.ports.is_empty());
+            assert_eq!(definition.daemon, definition.config_name.is_some());
+            assert!(definition.required_files.contains(&definition.executable));
+            for dependency in &definition.dependencies {
+                assert!(ServiceId::ALL.contains(dependency));
+            }
+        }
+        assert!(validate_ports(ServiceId::Nodejs, &[], &Settings::default()).is_ok());
+        assert!(validate_ports(ServiceId::Composer, &[3000], &Settings::default()).is_err());
+    }
     #[test]
     fn rejects_unsafe_domains_and_versions() {
         for host in [

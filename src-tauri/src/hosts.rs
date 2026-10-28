@@ -84,7 +84,11 @@ pub fn encode(content: &str) -> Result<Vec<u8>> {
 #[cfg(windows)]
 pub async fn apply(hostnames: &[String]) -> Result<()> {
     use std::time::Duration;
-    let _ = render(&read()?, hostnames)?;
+    let hostnames = hostnames
+        .iter()
+        .map(|name| validate_hostname(name))
+        .collect::<Result<Vec<_>>>()?;
+    let _ = render(&read()?, &hostnames)?;
     let executable = std::env::current_exe()?;
     // Arguments contain only strictly validated ASCII hostnames. The elevated helper has one operation.
     let arguments = if hostnames.is_empty() {
