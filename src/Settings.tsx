@@ -7,17 +7,20 @@ import {
   Laptop,
   Moon,
   Palette,
+  PanelBottomClose,
+  RotateCcw,
   ShieldCheck,
   Sun,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button, Dialog, DialogHeader } from './components';
-import { Select } from './controls';
-import { call, environmentApi, native } from './api';
+import { Checkbox, Select } from './controls';
+import { call, configurationApi, desktopApi, environmentApi, native } from './api';
 import type {
   EnvironmentFolder,
   EnvironmentMove,
   EnvironmentMoveProgress as MoveProgress,
+  ConfigurationReset,
 } from './types';
 import { EnvironmentMoveProgress } from './EnvironmentMoveProgress';
 import { FileFailureDetails } from './FileFailureDetails';
@@ -30,6 +33,10 @@ export function Settings() {
   const [destination, setDestination] = useState<EnvironmentFolder | null>(null);
   const [moveStatus, setMoveStatus] = useState<EnvironmentMove | null>(null);
   const [moveProgress, setMoveProgress] = useState<MoveProgress | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetConfirmed, setResetConfirmed] = useState(false);
+  const [resetResult, setResetResult] = useState<ConfigurationReset | null>(null);
+  const resetting = useRef(false);
   const running = snapshot.services.some((service) => service.status === 'running');
   const moveState = moveStatus ?? snapshot.environmentMove;
   const cleanup = moveState?.cleanupSource;
@@ -50,6 +57,25 @@ export function Settings() {
         setMoveProgress(null);
       }
     }, t('environmentMoved'));
+  const closeReset = () => {
+    if (resetting.current) return;
+    setResetOpen(false);
+    setResetConfirmed(false);
+  };
+  const resetConfiguration = async () => {
+    if (resetting.current || !resetConfirmed || busy || cleanup) return;
+    resetting.current = true;
+    try {
+      await run(async () => {
+        const result = await configurationApi.reset();
+        setResetResult(result);
+        setResetOpen(false);
+        setResetConfirmed(false);
+      });
+    } finally {
+      resetting.current = false;
+    }
+  };
   return (
     <>
       <div className="page-heading">
@@ -116,6 +142,32 @@ export function Settings() {
                 { value: 'es', label: t('languageSpanish') },
                 { value: 'zh-CN', label: t('languageChinese') },
                 { value: 'hi', label: t('languageHindi') },
+              ]}
+            />
+          </div>
+        </div>
+      </section>
+      <section className="settings-panel">
+        <div className="settings-section">
+          <div className="setting-icon">
+            <PanelBottomClose size={21} />
+          </div>
+          <div className="setting-content">
+            <h2>{t('closeBehavior')}</h2>
+            <p id="close-behavior-help">{t('closeBehaviorDescription')}</p>
+            <Select
+              className="close-behavior-select"
+              aria-label={t('closeBehavior')}
+              aria-describedby="close-behavior-help"
+              value={snapshot.settings.closeBehavior}
+              disabled={busy || !native}
+              onValueChange={(behavior) =>
+                void run(() => desktopApi.saveCloseBehavior(behavior), t('saved'))
+              }
+              options={[
+                { value: 'ask', label: t('askBeforeClosing') },
+                { value: 'tray', label: t('minimizeToTray') },
+                { value: 'exit', label: t('exitApp') },
               ]}
             />
           </div>
@@ -206,6 +258,91 @@ export function Settings() {
           </div>
         </div>
       </section>
+      <section className="settings-panel configuration-reset-panel">
+        <div className="settings-section">
+          <div className="setting-icon">
+            <RotateCcw size={21} />
+          </div>
+          <div className="setting-content">
+            <h2>{t('resetConfiguration')}</h2>
+            <p>{t('resetConfigurationDescription')}</p>
+            <Button
+              variant="danger"
+              disabled={busy || !native || !snapshot.root || !!snapshot.busyService || !!cleanup}
+              onClick={() => {
+                setResetConfirmed(false);
+                setResetOpen(true);
+              }}
+            >
+              <RotateCcw size={15} />
+              {t('resetConfiguration')}
+            </Button>
+            {cleanup && <p className="field-help">{t('resetBlocked')}</p>}
+            {resetResult && (
+              <div className="configuration-reset-result" role="status">
+                <p>{t('resetSuccess')}</p>
+                <strong>{t('resetBackupLabel')}</strong>
+                <code>{resetResult.backupPath}</code>
+                <Button
+                  disabled={busy}
+                  onClick={() => void run(() => call('open_location', { location: 'backups' }))}
+                >
+                  <FolderOpen size={15} />
+                  {t('resetOpenBackups')}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+      {resetOpen && (
+        <Dialog
+          title={t('resetConfirmTitle')}
+          className="configuration-reset-dialog"
+          onClose={closeReset}
+        >
+          <DialogHeader title={t('resetConfirmTitle')} onClose={closeReset} />
+          <div className="dialog-content">
+            <code className="workspace-path">{snapshot.root}</code>
+            <h3>{t('resetChangesTitle')}</h3>
+            <ul>
+              <li>{t('resetChangesPreferences')}</li>
+              <li>{t('resetChangesServices')}</li>
+              <li>{t('resetChangesFiles')}</li>
+              <li>{t('resetChangesSites')}</li>
+            </ul>
+            <h3>{t('resetPreservedTitle')}</h3>
+            <ul>
+              <li>{t('resetPreservePackages')}</li>
+              <li>{t('resetPreserveData')}</li>
+              <li>{t('resetPreserveExternal')}</li>
+            </ul>
+            <p className="field-help">{t('resetStopHelp')}</p>
+            <p className="field-help">{t('resetBackupHelp')}</p>
+            <Checkbox
+              checked={resetConfirmed}
+              disabled={busy}
+              onChange={(event) => setResetConfirmed(event.target.checked)}
+            >
+              {t('resetConfirmation')}
+            </Checkbox>
+          </div>
+          <div data-notification-host />
+          <div className="dialog-actions">
+            <Button disabled={busy} onClick={closeReset}>
+              {t('cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              disabled={busy || !resetConfirmed || !!cleanup}
+              loading={busy}
+              onClick={() => void resetConfiguration()}
+            >
+              {t(busy ? 'resetBusy' : 'resetConfiguration')}
+            </Button>
+          </div>
+        </Dialog>
+      )}
       {destination && (
         <Dialog
           title={t('environmentMoveTitle')}

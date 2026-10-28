@@ -96,6 +96,10 @@ impl Engine {
         let storage = Storage::open(root)?;
         let mut engine = Self::from_storage(storage)?;
         user_path::recover(&engine.storage, engine.settings.get_mut())?;
+        let settings = engine.settings.get_mut();
+        for install in &settings.services[&ServiceId::Php].installations {
+            config::ensure(&engine.storage, ServiceId::Php, &install.version, settings)?;
+        }
         user_path::upgrade_php_cli(&engine.storage, engine.settings.get_mut())?;
         Ok(engine)
     }
@@ -299,6 +303,9 @@ impl Engine {
         }
         self.storage.prepare(id, &version)?;
         toolchain::prepare(&self.storage, id, &version)?;
+        if id == ServiceId::Php {
+            config::ensure(&self.storage, id, &version, &settings)?;
+        }
         let path = self.storage.config(id, &version);
         let changes = if id.definition().config_name.is_some() && !path.exists() {
             vec![(
@@ -1030,6 +1037,8 @@ impl Engine {
         let settings = self.settings.read().await;
         let content = if id == ServiceId::Nginx {
             sites::attach(&content, &self.storage)?
+        } else if id == ServiceId::Php {
+            crate::php_tls::configure(&self.storage, &content)?
         } else {
             content
         };
@@ -1376,6 +1385,43 @@ impl Engine {
         settings.theme = theme;
         self.commit(settings).await
     }
+    pub async fn reset_configuration(&self) -> Result<crate::reset::ResetResult> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let current = self.settings.read().await.clone();
+        for id in ServiceId::ALL.into_iter().rev() {
+            self.stop(id).await?;
+        }
+        self.ensure_stopped().await?;
+        let mut plan = crate::reset::prepare(&self.storage, &current)?;
+        let backup_path = plan.backup(&self.storage)?;
+        plan.verify(&self.storage)?;
+        let removed_files = plan.changes.removals.len();
+        user_path::transaction_changes(
+            &self.storage,
+            &current,
+            &mut plan.settings,
+            plan.changes,
+            None,
+        )?;
+        *self.settings.write().await = plan.settings;
+        self.failures.write().await.clear();
+        Ok(crate::reset::ResetResult {
+            backup_path,
+            removed_files,
+        })
+    }
+    pub async fn save_close_behavior(&self, behavior: CloseBehavior) -> Result<()> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let mut settings = self.settings.read().await.clone();
+        settings.close_behavior = behavior;
+        self.commit(settings).await
+    }
     pub async fn save_site(&self, mut site: Site) -> Result<()> {
         let _operation = self
             .operation
@@ -1719,6 +1765,7 @@ impl Engine {
         let settings = self.settings.read().await;
         let path = match location {
             "workspace" => self.storage.root.clone(),
+            "backups" => self.storage.root.join("backups"),
             "projects" => self.storage.root.join("projects"),
             "logs" | "config" | "package" => {
                 let id = id.ok_or_else(|| invalid("Missing service"))?;

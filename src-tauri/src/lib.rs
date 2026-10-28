@@ -1,5 +1,6 @@
 pub mod catalog;
 pub mod config;
+pub mod desktop;
 pub mod engine;
 pub mod error;
 pub mod file_diagnostics;
@@ -8,7 +9,9 @@ pub mod installer;
 pub mod model;
 pub mod move_progress;
 pub mod php_extensions;
+pub mod php_tls;
 pub mod platform;
+pub mod reset;
 pub mod sites;
 pub mod storage;
 pub mod toolchain;
@@ -281,6 +284,16 @@ async fn cleanup_environment(engine: State<'_, Arc<Workspace>>) -> Result<worksp
     .map_err(|e| error::invalid(e.to_string()))?
 }
 
+#[tauri::command]
+async fn reset_configuration(engine: State<'_, Arc<Workspace>>) -> Result<reset::ResetResult> {
+    let workspace = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        tauri::async_runtime::block_on(workspace.reset_configuration())
+    })
+    .await
+    .map_err(|error| error::invalid(error.to_string()))?
+}
+
 pub fn run() {
     if std::env::args().nth(1).as_deref() == Some("--apply-hosts") {
         let hosts: Vec<String> = std::env::args().skip(2).collect();
@@ -302,6 +315,7 @@ pub fn run() {
         }
     }
     tauri::Builder::default()
+        .manage(desktop::Desktop::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let exe = std::env::current_exe()?;
@@ -388,17 +402,19 @@ pub fn run() {
             choose_folder,
             choose_environment_folder,
             move_environment,
-            cleanup_environment
+            cleanup_environment,
+            reset_configuration,
+            desktop::configure_tray,
+            desktop::get_close_request,
+            desktop::resolve_close_request,
+            desktop::save_close_behavior
         ])
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            if window.label() == "main"
+                && let tauri::WindowEvent::CloseRequested { api, .. } = event
+            {
                 api.prevent_close();
-                let engine = window.state::<Arc<Workspace>>().inner().clone();
-                let app = window.app_handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    engine.engine.read().await.shutdown().await;
-                    app.exit(0);
-                });
+                desktop::request_close(window.app_handle().clone());
             }
         })
         .run(tauri::generate_context!())

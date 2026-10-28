@@ -16,6 +16,21 @@ pub struct Storage {
     _lock: File,
 }
 
+#[derive(Default)]
+pub struct ConfigChanges {
+    pub writes: Vec<(PathBuf, String)>,
+    pub removals: Vec<PathBuf>,
+}
+
+impl From<Vec<(PathBuf, String)>> for ConfigChanges {
+    fn from(writes: Vec<(PathBuf, String)>) -> Self {
+        Self {
+            writes,
+            removals: Vec::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct ConfigJournal {
     revision: u64,
@@ -105,11 +120,26 @@ impl Storage {
         atomic_json(&path, settings)
     }
     pub fn transaction(&self, settings: &Settings, changes: &[(PathBuf, String)]) -> Result<()> {
-        if changes.is_empty() {
+        self.apply(settings, &ConfigChanges::from(changes.to_vec()))
+    }
+    pub fn apply(&self, settings: &Settings, changes: &ConfigChanges) -> Result<()> {
+        if changes.writes.is_empty() && changes.removals.is_empty() {
             return self.save(settings);
         }
         let mut files = Vec::new();
-        for (path, _) in changes {
+        for path in &changes.removals {
+            if changes.writes.iter().any(|(written, _)| written == path) {
+                return Err(invalid(
+                    "A configuration cannot be written and removed in one transaction",
+                ));
+            }
+        }
+        for path in changes
+            .writes
+            .iter()
+            .map(|(path, _)| path)
+            .chain(&changes.removals)
+        {
             let relative = path
                 .strip_prefix(&self.root)
                 .map_err(|_| invalid("Configuration is outside the workspace"))?
@@ -132,8 +162,11 @@ impl Storage {
         let pending = self.root.join("backups/pending-config.json");
         atomic_json(&pending, &journal)?;
         let result = (|| {
-            for (path, content) in changes {
+            for (path, content) in &changes.writes {
                 atomic_write(path, content.as_bytes())?;
+            }
+            for path in &changes.removals {
+                fs::remove_file(path).at(Op::Remove, path)?;
             }
             self.save(settings)
         })();
@@ -157,7 +190,13 @@ impl Storage {
         for file in &journal.files {
             let path = self.journal_path(&file.path)?;
             match &file.before {
-                Some(bytes) => atomic_write(&path, bytes)?,
+                Some(bytes) => {
+                    // A failed deletion can leave a locked file unchanged. Do
+                    // not replace it unnecessarily while rolling back others.
+                    if fs::read(&path).ok().as_ref() != Some(bytes) {
+                        atomic_write(&path, bytes)?;
+                    }
+                }
                 None if path.exists() => fs::remove_file(path)?,
                 None => {}
             }
@@ -318,5 +357,49 @@ mod tests {
         let store = Storage::open(temp.path().to_owned()).unwrap();
         assert_eq!(fs::read(full).unwrap(), b"old");
         assert_eq!(store.load().unwrap().revision, 0);
+    }
+
+    #[test]
+    fn recovers_deleted_configuration_files_after_an_interrupted_reset() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Storage::open(temp.path().to_owned()).unwrap();
+        let settings = store.load().unwrap();
+        let path = PathBuf::from("config/sites/custom/nginx.conf");
+        atomic_write(&store.root.join(&path), b"original rules").unwrap();
+        let journal = ConfigJournal {
+            revision: settings.revision + 1,
+            settings_before: serde_json::to_vec(&settings).unwrap(),
+            files: vec![JournalFile {
+                path: path.clone(),
+                before: Some(b"original rules".to_vec()),
+            }],
+        };
+        atomic_json(&store.root.join("backups/pending-config.json"), &journal).unwrap();
+        fs::remove_file(store.root.join(&path)).unwrap();
+        drop(store);
+        let reopened = Storage::open(temp.path().to_owned()).unwrap();
+        assert_eq!(
+            fs::read(reopened.root.join(path)).unwrap(),
+            b"original rules"
+        );
+        assert_eq!(reopened.load().unwrap().revision, settings.revision);
+    }
+
+    #[test]
+    fn rejects_configuration_deletions_outside_config_before_writing_anything() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = Storage::open(temp.path().to_owned()).unwrap();
+        let settings = store.load().unwrap();
+        let config = store.root.join("config/custom.ini");
+        let database = store.root.join("data/database.bin");
+        atomic_write(&config, b"original").unwrap();
+        atomic_write(&database, b"database").unwrap();
+        let changes = ConfigChanges {
+            writes: vec![(config.clone(), "default".into())],
+            removals: vec![database.clone()],
+        };
+        assert!(store.apply(&settings, &changes).is_err());
+        assert_eq!(fs::read(config).unwrap(), b"original");
+        assert_eq!(fs::read(database).unwrap(), b"database");
     }
 }

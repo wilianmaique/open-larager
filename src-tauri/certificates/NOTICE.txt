@@ -1,0 +1,11 @@
+mozilla.pem is the unmodified Mozilla CA certificate store in PEM format,
+distributed by the curl project under the Mozilla Public License 2.0.
+The upstream source comments are retained in the PEM file.
+
+Source: https://curl.se/docs/caextract.html
+Pinned revision and SHA-256: src-tauri/catalog/ca-bundle.json in the
+Open Larager source distribution.
+License: https://www.mozilla.org/en-US/MPL/2.0/
+
+Open Larager exports this source file unchanged to config/certificates/ for
+PHP HTTPS verification. It contains public trust anchors, no private keys.

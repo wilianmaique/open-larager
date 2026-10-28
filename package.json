@@ -23,7 +23,9 @@
     "format": "prettier --write src tests scripts *.json *.ts",
     "format:check": "prettier --check src tests scripts *.json *.ts",
     "catalog:refresh": "node scripts/refresh-catalog.mjs && node scripts/refresh-php-extensions.mjs",
-    "catalog:extensions": "node scripts/refresh-php-extensions.mjs"
+    "catalog:extensions": "node scripts/refresh-php-extensions.mjs",
+    "certificates:refresh": "node scripts/refresh-ca-bundle.mjs",
+    "certificates:check": "node scripts/refresh-ca-bundle.mjs --check"
   },
   "dependencies": {
     "@monaco-editor/react": "4.7.0",

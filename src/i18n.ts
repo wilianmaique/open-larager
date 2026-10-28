@@ -1,5 +1,47 @@
 import type { Locale } from './types';
 export const en = {
+  resetConfiguration: 'Reset all settings',
+  resetConfigurationDescription:
+    'Restore the app and service defaults while keeping installed packages and environment data.',
+  resetConfirmTitle: 'Reset all settings?',
+  resetChangesTitle: 'What will be removed or restored',
+  resetChangesPreferences: 'Language, theme and close behavior return to their initial defaults.',
+  resetChangesServices:
+    'Ports and automatic startup return to defaults. PATH entries owned by Open Larager are unregistered.',
+  resetChangesFiles:
+    'Custom files in config/, including php.ini, PHP extension settings and custom CA files, are removed or replaced with defaults for every installed version.',
+  resetChangesSites: 'Registered domains and custom site rules are removed.',
+  resetPreservedTitle: 'What will be kept',
+  resetPreservePackages: 'Installed packages and the currently active versions.',
+  resetPreserveData:
+    'Projects, databases, logs and environment credentials in projects/, data/, logs/ and secrets/.',
+  resetPreserveExternal:
+    'The environment location, local CA, Windows hosts file and Windows certificate trust.',
+  resetStopHelp:
+    'Services will be stopped and stay stopped. Close external editors that are changing configuration files.',
+  resetBackupHelp:
+    'A verified copy of settings.json and config/ will be saved in backups/ before cleanup.',
+  resetConfirmation: 'I understand that custom settings and registered domains will be removed.',
+  resetBusy: 'Resetting settings…',
+  resetSuccess: 'Settings restored. Services remain stopped.',
+  resetBackupLabel: 'Previous settings backup',
+  resetOpenBackups: 'Open backups folder',
+  resetBlocked: 'Finish the pending environment move before resetting settings.',
+  closeBehavior: 'When closing the window',
+  closeBehaviorDescription:
+    'Choose what the close button does. Services keep running in the tray and stop when you exit.',
+  askBeforeClosing: 'Ask every time',
+  minimizeToTray: 'Minimize to tray',
+  exitApp: 'Exit application',
+  trayOpen: 'Open Open Larager',
+  closeAppTitle: 'What would you like to do?',
+  closeAppDescription:
+    'Minimize to the system tray to keep your services running. Exit to stop services and close Open Larager after pending work finishes.',
+  rememberCloseChoice: 'Remember my choice',
+  closeChoiceHelp: 'You can change this later in Settings → When closing the window.',
+  trayUnavailable: 'The system tray is unavailable. Keep the window open or exit the application.',
+  closeAppError:
+    'Could not complete this action. Wait for any current operation to finish and try again.',
   fileDiagnosticTitle: 'File operation details',
   fileOperationLabel: 'Operation',
   filePathLabel: 'File or folder',
@@ -382,6 +424,50 @@ export type Key = keyof typeof en;
 type Dictionary = Record<Key, string>;
 
 const pt: Dictionary = {
+  resetConfiguration: 'Restaurar todas as configurações',
+  resetConfigurationDescription:
+    'Restaure os padrões do app e dos serviços, preservando os pacotes instalados e os dados do ambiente.',
+  resetConfirmTitle: 'Restaurar todas as configurações?',
+  resetChangesTitle: 'O que será removido ou restaurado',
+  resetChangesPreferences: 'Idioma, tema e comportamento ao fechar voltam aos padrões iniciais.',
+  resetChangesServices:
+    'Portas e inicialização automática voltam aos padrões. As entradas de PATH que pertencem ao Open Larager são removidas.',
+  resetChangesFiles:
+    'Arquivos personalizados em config/, incluindo php.ini, configurações de extensões PHP e arquivos de CA personalizados, são removidos ou substituídos pelos padrões de cada versão instalada.',
+  resetChangesSites: 'Domínios cadastrados e regras personalizadas dos sites são removidos.',
+  resetPreservedTitle: 'O que será preservado',
+  resetPreservePackages: 'Pacotes instalados e versões atualmente ativas.',
+  resetPreserveData:
+    'Projetos, bancos de dados, logs e credenciais do ambiente em projects/, data/, logs/ e secrets/.',
+  resetPreserveExternal:
+    'Localização do ambiente, CA local, arquivo hosts e confiança de certificados do Windows.',
+  resetStopHelp:
+    'Os serviços serão parados e permanecerão parados. Feche editores externos que estejam alterando os arquivos de configuração.',
+  resetBackupHelp:
+    'Uma cópia verificada de settings.json e config/ será salva em backups/ antes da limpeza.',
+  resetConfirmation:
+    'Entendo que as configurações personalizadas e os domínios cadastrados serão removidos.',
+  resetBusy: 'Restaurando configurações…',
+  resetSuccess: 'Configurações restauradas. Os serviços permanecem parados.',
+  resetBackupLabel: 'Backup das configurações anteriores',
+  resetOpenBackups: 'Abrir pasta de backups',
+  resetBlocked: 'Conclua a mudança de pasta pendente antes de restaurar as configurações.',
+  closeBehavior: 'Ao fechar a janela',
+  closeBehaviorDescription:
+    'Escolha o que o botão de fechar faz. Os serviços continuam ativos na bandeja e são parados ao sair.',
+  askBeforeClosing: 'Perguntar sempre',
+  minimizeToTray: 'Minimizar na bandeja',
+  exitApp: 'Sair do aplicativo',
+  trayOpen: 'Abrir Open Larager',
+  closeAppTitle: 'O que você deseja fazer?',
+  closeAppDescription:
+    'Minimize na bandeja do sistema para manter os serviços ativos. Ao sair, o Open Larager aguarda as operações pendentes, para os serviços e fecha.',
+  rememberCloseChoice: 'Lembrar minha escolha',
+  closeChoiceHelp: 'Você pode alterar isso depois em Configurações → Ao fechar a janela.',
+  trayUnavailable:
+    'A bandeja do sistema está indisponível. Mantenha a janela aberta ou saia do aplicativo.',
+  closeAppError:
+    'Não foi possível concluir a ação. Aguarde a operação atual terminar e tente novamente.',
   fileDiagnosticTitle: 'Detalhes da operação de arquivo',
   fileOperationLabel: 'Operação',
   filePathLabel: 'Arquivo ou pasta',
@@ -758,6 +844,52 @@ const pt: Dictionary = {
 };
 
 const es: Dictionary = {
+  resetConfiguration: 'Restablecer toda la configuración',
+  resetConfigurationDescription:
+    'Restaura los valores iniciales de la aplicación y los servicios, conservando los paquetes instalados y los datos del entorno.',
+  resetConfirmTitle: '¿Restablecer toda la configuración?',
+  resetChangesTitle: 'Qué se eliminará o restaurará',
+  resetChangesPreferences:
+    'El idioma, el tema y la acción al cerrar vuelven a sus valores iniciales.',
+  resetChangesServices:
+    'Los puertos y el inicio automático vuelven a sus valores iniciales. Se retiran las entradas de PATH que pertenecen a Open Larager.',
+  resetChangesFiles:
+    'Los archivos personalizados en config/, incluidos php.ini, las opciones de extensiones PHP y los archivos de CA personalizados, se eliminan o sustituyen por los valores iniciales de cada versión instalada.',
+  resetChangesSites:
+    'Se eliminan los dominios registrados y las reglas personalizadas de los sitios.',
+  resetPreservedTitle: 'Qué se conservará',
+  resetPreservePackages: 'Los paquetes instalados y las versiones activas.',
+  resetPreserveData:
+    'Los proyectos, bases de datos, registros y credenciales del entorno en projects/, data/, logs/ y secrets/.',
+  resetPreserveExternal:
+    'La ubicación del entorno, la CA local, el archivo hosts y la confianza de certificados de Windows.',
+  resetStopHelp:
+    'Los servicios se detendrán y permanecerán detenidos. Cierra los editores externos que estén modificando archivos de configuración.',
+  resetBackupHelp:
+    'Antes de la limpieza se guardará en backups/ una copia verificada de settings.json y config/.',
+  resetConfirmation:
+    'Entiendo que se eliminarán los ajustes personalizados y los dominios registrados.',
+  resetBusy: 'Restableciendo la configuración…',
+  resetSuccess: 'Configuración restaurada. Los servicios permanecen detenidos.',
+  resetBackupLabel: 'Copia de la configuración anterior',
+  resetOpenBackups: 'Abrir carpeta de copias',
+  resetBlocked: 'Termina el traslado pendiente del entorno antes de restablecer la configuración.',
+  closeBehavior: 'Al cerrar la ventana',
+  closeBehaviorDescription:
+    'Elige qué hace el botón de cerrar. Los servicios siguen activos en la bandeja y se detienen al salir.',
+  askBeforeClosing: 'Preguntar siempre',
+  minimizeToTray: 'Minimizar a la bandeja',
+  exitApp: 'Salir de la aplicación',
+  trayOpen: 'Abrir Open Larager',
+  closeAppTitle: '¿Qué quieres hacer?',
+  closeAppDescription:
+    'Minimiza a la bandeja del sistema para mantener los servicios activos. Al salir, Open Larager espera a que terminen las operaciones pendientes, detiene los servicios y se cierra.',
+  rememberCloseChoice: 'Recordar mi elección',
+  closeChoiceHelp: 'Puedes cambiarlo después en Configuración → Al cerrar la ventana.',
+  trayUnavailable:
+    'La bandeja del sistema no está disponible. Mantén la ventana abierta o sal de la aplicación.',
+  closeAppError:
+    'No se pudo completar la acción. Espera a que termine la operación actual e inténtalo de nuevo.',
   fileDiagnosticTitle: 'Detalles de la operación de archivo',
   fileOperationLabel: 'Operación',
   filePathLabel: 'Archivo o carpeta',
@@ -1138,6 +1270,40 @@ const es: Dictionary = {
 };
 
 const zh: Dictionary = {
+  resetConfiguration: '重置所有设置',
+  resetConfigurationDescription: '恢复应用和服务的默认设置，保留已安装的软件包及环境数据。',
+  resetConfirmTitle: '重置所有设置？',
+  resetChangesTitle: '将删除或恢复的内容',
+  resetChangesPreferences: '语言、主题和关闭窗口时的行为恢复为初始默认设置。',
+  resetChangesServices: '端口和自动启动恢复默认值，并移除由 Open Larager 管理的 PATH 条目。',
+  resetChangesFiles:
+    'config/ 中的自定义文件，包括 php.ini、PHP 扩展设置和自定义 CA 文件，将被删除或替换为各已安装版本的默认配置。',
+  resetChangesSites: '删除已注册的域名和自定义站点规则。',
+  resetPreservedTitle: '将保留的内容',
+  resetPreservePackages: '已安装的软件包及当前启用的版本。',
+  resetPreserveData: 'projects/、data/、logs/ 和 secrets/ 中的项目、数据库、日志及环境凭据。',
+  resetPreserveExternal: '环境位置、本地 CA、Windows hosts 文件和 Windows 证书信任。',
+  resetStopHelp: '服务将停止并保持停止状态。请关闭正在修改配置文件的外部编辑器。',
+  resetBackupHelp: '清理前，会将 settings.json 和 config/ 的经验证副本保存到 backups/。',
+  resetConfirmation: '我理解自定义设置和已注册的域名将被删除。',
+  resetBusy: '正在重置设置…',
+  resetSuccess: '设置已恢复。服务保持停止状态。',
+  resetBackupLabel: '之前设置的备份',
+  resetOpenBackups: '打开备份文件夹',
+  resetBlocked: '请先完成待处理的环境移动，再重置设置。',
+  closeBehavior: '关闭窗口时',
+  closeBehaviorDescription: '选择关闭按钮的行为。最小化到托盘时服务继续运行，退出时停止服务。',
+  askBeforeClosing: '每次询问',
+  minimizeToTray: '最小化到托盘',
+  exitApp: '退出应用',
+  trayOpen: '打开 Open Larager',
+  closeAppTitle: '您想执行什么操作？',
+  closeAppDescription:
+    '最小化到系统托盘可保持服务运行。退出时，Open Larager 会等待待处理操作完成，停止服务并关闭。',
+  rememberCloseChoice: '记住我的选择',
+  closeChoiceHelp: '稍后可在“设置 → 关闭窗口时”中更改。',
+  trayUnavailable: '系统托盘不可用。请保持窗口打开或退出应用。',
+  closeAppError: '无法完成操作。请等待当前操作完成后重试。',
   fileDiagnosticTitle: '文件操作详情',
   fileOperationLabel: '操作',
   filePathLabel: '文件或文件夹',
@@ -1489,6 +1655,47 @@ const zh: Dictionary = {
 };
 
 const hi: Dictionary = {
+  resetConfiguration: 'सभी सेटिंग्स रीसेट करें',
+  resetConfigurationDescription:
+    'इंस्टॉल किए गए पैकेज और परिवेश का डेटा सुरक्षित रखते हुए ऐप और सेवाओं की डिफ़ॉल्ट सेटिंग्स बहाल करें।',
+  resetConfirmTitle: 'सभी सेटिंग्स रीसेट करें?',
+  resetChangesTitle: 'क्या हटाया या बहाल किया जाएगा',
+  resetChangesPreferences: 'भाषा, थीम और विंडो बंद करने का व्यवहार शुरुआती डिफ़ॉल्ट पर लौटेंगे।',
+  resetChangesServices:
+    'पोर्ट और अपने आप शुरू होने की सेटिंग्स डिफ़ॉल्ट पर लौटेंगी। Open Larager की अपनी PATH प्रविष्टियाँ हटेंगी।',
+  resetChangesFiles:
+    'config/ की कस्टम फ़ाइलें, जिनमें php.ini, PHP एक्सटेंशन सेटिंग्स और कस्टम CA फ़ाइलें शामिल हैं, हटेंगी या हर इंस्टॉल किए गए संस्करण के डिफ़ॉल्ट से बदलेंगी।',
+  resetChangesSites: 'पंजीकृत डोमेन और साइटों के कस्टम नियम हटाए जाएंगे।',
+  resetPreservedTitle: 'क्या सुरक्षित रहेगा',
+  resetPreservePackages: 'इंस्टॉल किए गए पैकेज और अभी सक्रिय संस्करण।',
+  resetPreserveData:
+    'projects/, data/, logs/ और secrets/ में प्रोजेक्ट, डेटाबेस, लॉग और परिवेश के क्रेडेंशियल।',
+  resetPreserveExternal:
+    'परिवेश का स्थान, स्थानीय CA, Windows की hosts फ़ाइल और Windows का प्रमाणपत्र विश्वास।',
+  resetStopHelp:
+    'सेवाएँ रोक दी जाएंगी और रुकी रहेंगी। कॉन्फ़िगरेशन फ़ाइलें बदल रहे बाहरी संपादक बंद करें।',
+  resetBackupHelp:
+    'सफ़ाई से पहले settings.json और config/ की सत्यापित प्रतिलिपि backups/ में सहेजी जाएगी।',
+  resetConfirmation: 'मैं समझता हूँ कि कस्टम सेटिंग्स और पंजीकृत डोमेन हटा दिए जाएंगे।',
+  resetBusy: 'सेटिंग्स रीसेट हो रही हैं…',
+  resetSuccess: 'सेटिंग्स बहाल हो गई हैं। सेवाएँ रुकी हुई हैं।',
+  resetBackupLabel: 'पिछली सेटिंग्स का बैकअप',
+  resetOpenBackups: 'बैकअप फ़ोल्डर खोलें',
+  resetBlocked: 'सेटिंग्स रीसेट करने से पहले परिवेश का लंबित स्थानांतरण पूरा करें।',
+  closeBehavior: 'विंडो बंद करने पर',
+  closeBehaviorDescription:
+    'चुनें कि बंद करने वाला बटन क्या करे। ट्रे में सेवाएँ चलती रहती हैं और ऐप से बाहर निकलने पर रुक जाती हैं।',
+  askBeforeClosing: 'हर बार पूछें',
+  minimizeToTray: 'ट्रे में छोटा करें',
+  exitApp: 'ऐप से बाहर निकलें',
+  trayOpen: 'Open Larager खोलें',
+  closeAppTitle: 'आप क्या करना चाहेंगे?',
+  closeAppDescription:
+    'सेवाएँ चालू रखने के लिए सिस्टम ट्रे में छोटा करें। बाहर निकलने पर Open Larager लंबित काम पूरा होने की प्रतीक्षा करता है, सेवाएँ रोकता है और बंद हो जाता है।',
+  rememberCloseChoice: 'मेरी पसंद याद रखें',
+  closeChoiceHelp: 'आप इसे बाद में सेटिंग्स → विंडो बंद करने पर में बदल सकते हैं।',
+  trayUnavailable: 'सिस्टम ट्रे उपलब्ध नहीं है। विंडो खुली रखें या ऐप से बाहर निकलें।',
+  closeAppError: 'यह कार्रवाई पूरी नहीं हो सकी। मौजूदा काम पूरा होने दें और फिर कोशिश करें।',
   fileDiagnosticTitle: 'फ़ाइल संचालन का विवरण',
   fileOperationLabel: 'संचालन',
   filePathLabel: 'फ़ाइल या फ़ोल्डर',

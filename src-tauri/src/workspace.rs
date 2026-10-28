@@ -221,6 +221,19 @@ impl Workspace {
         self.finish(&mut current, &mut |_| {})
     }
 
+    pub async fn reset_configuration(&self) -> Result<crate::reset::ResetResult> {
+        let current = self
+            .engine
+            .try_write()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        if self.status()?.cleanup_source.is_some() {
+            return Err(invalid(
+                "Finish the pending environment move before resetting configuration",
+            ));
+        }
+        current.reset_configuration().await
+    }
+
     fn finish(&self, current: &mut Engine, processed: &mut dyn FnMut(u64)) -> Result<MoveStatus> {
         let mut location = self
             .location
@@ -570,6 +583,21 @@ fn rebase(
             slash(&storage.root).replace('/', "\\"),
         ),
     ];
+    // libcurl/OpenSSL use Windows ANSI aliases for CA files too. File aliases
+    // can differ at the destination, so rebase the complete paths before roots.
+    let certificates = storage.root.join("config/certificates");
+    if certificates.is_dir() {
+        for entry in fs::read_dir(&certificates).at(Op::Inspect, &certificates)? {
+            let entry = entry.at(Op::Inspect, &certificates)?;
+            let to = entry.path();
+            if entry.file_type().at(Op::Inspect, &to)?.is_file()
+                && to.extension().is_some_and(|extension| extension == "pem")
+            {
+                let from = source.join("config/certificates").join(entry.file_name());
+                mappings.push((platform::runtime_path(&from)?, platform::runtime_path(&to)?));
+            }
+        }
+    }
     for id in [ServiceId::Php, ServiceId::Mysql, ServiceId::Postgresql] {
         let mut versions: BTreeSet<_> = settings.services[&id]
             .installations
@@ -754,6 +782,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn refuses_configuration_reset_during_a_move_or_another_workspace_operation() {
+        let (_temp, workspace, source, _target, _preference) = fixture();
+        let guard = workspace.engine.read().await;
+        assert!(workspace.reset_configuration().await.is_err());
+        drop(guard);
+        workspace.location.lock().unwrap().cleanup = Some(Cleanup {
+            source: source.clone(),
+            manifest: Manifest::default(),
+        });
+        assert!(workspace.reset_configuration().await.is_err());
+        assert_eq!(
+            workspace.engine.read().await.settings.read().await.language,
+            "auto"
+        );
+        assert!(source.join("settings.json").is_file());
+    }
+
+    #[tokio::test]
     async fn reports_measured_bytes_through_verification_and_source_cleanup() {
         let (_temp, workspace, source, target, _preference) = fixture();
         let settings_bytes = fs::metadata(source.join("settings.json")).unwrap().len();
@@ -856,6 +902,7 @@ mod tests {
         let config = format!(
             "; custom setting\nmemory_limit=384M\nextension_dir=\"{old_root}/packages/php/8.4.0/ext\"\nexternal=\"{old_root}-external/project\"\n"
         );
+        let config = crate::php_tls::configure(&engine.storage, &config).unwrap();
         write(&source, "config/php/8.4.0/php.ini", config.as_bytes());
         write(
             &source,
@@ -930,6 +977,10 @@ mod tests {
         assert!(config.contains("memory_limit=384M"));
         assert!(config.contains(&format!("{new_root}/packages/php")));
         assert!(config.contains(&format!("{old_root}-external/project")));
+        assert_eq!(
+            crate::php_tls::configure(&engine.storage, &config).unwrap(),
+            config
+        );
         let settings = engine.settings.read().await;
         assert_eq!(settings.language, "pt-BR");
         assert_eq!(

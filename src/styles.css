@@ -2002,6 +2002,95 @@ progress::-webkit-progress-value {
   border-radius: 10px;
   margin-bottom: 20px;
 }
+.close-behavior-select {
+  margin-top: 18px;
+  width: min(100%, 340px);
+}
+.close-app-dialog {
+  width: min(580px, calc(100vw - 32px));
+}
+.close-app-dialog .checkbox {
+  margin-top: 20px;
+}
+.close-app-dialog .dialog-actions {
+  flex-wrap: wrap;
+}
+.close-app-dialog .field-help {
+  margin-top: 10px;
+}
+.configuration-reset-panel .setting-content > .button {
+  margin-top: 18px;
+}
+.configuration-reset-result {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  font-size: 12px;
+}
+.configuration-reset-result code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.configuration-reset-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-width: min(680px, calc(100vw - 32px));
+}
+.configuration-reset-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.configuration-reset-dialog .dialog-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+.configuration-reset-dialog .dialog-header,
+.configuration-reset-dialog .dialog-actions,
+.configuration-reset-dialog [data-notification-host] {
+  flex-shrink: 0;
+}
+.configuration-reset-dialog [data-notification-host] {
+  max-height: 25dvh;
+  overflow-y: auto;
+}
+.configuration-reset-dialog [data-notification-host] > .notification {
+  position: relative;
+  bottom: auto;
+  right: auto;
+  max-width: none;
+  margin: 0 20px 16px;
+  box-shadow: none;
+}
+.configuration-reset-dialog .workspace-path {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+.configuration-reset-dialog h3 {
+  font-size: 13px;
+  margin: 18px 0 10px;
+}
+.configuration-reset-dialog ul {
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.configuration-reset-dialog li + li {
+  margin-top: 7px;
+}
+.configuration-reset-dialog .field-help {
+  margin-top: 14px;
+}
+.configuration-reset-dialog .checkbox {
+  margin-top: 20px;
+  align-items: flex-start;
+  line-height: 1.6;
+}
+.configuration-reset-dialog .dialog-actions {
+  flex-wrap: wrap;
+}
 .settings-section {
   padding: 27px;
   display: flex;

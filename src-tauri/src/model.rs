@@ -160,6 +160,15 @@ pub struct Site {
     pub nginx_directives: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CloseBehavior {
+    #[default]
+    Ask,
+    Tray,
+    Exit,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -168,6 +177,8 @@ pub struct Settings {
     pub revision: u64,
     pub language: String,
     pub theme: String,
+    #[serde(default)]
+    pub close_behavior: CloseBehavior,
     pub services: BTreeMap<ServiceId, ServiceSettings>,
     pub sites: Vec<Site>,
 }
@@ -179,6 +190,7 @@ impl Default for Settings {
             revision: 0,
             language: "auto".into(),
             theme: "system".into(),
+            close_behavior: CloseBehavior::Ask,
             sites: Vec::new(),
             services: ServiceId::ALL
                 .into_iter()

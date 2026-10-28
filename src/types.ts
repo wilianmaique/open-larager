@@ -13,6 +13,8 @@ export const serviceIds = [
 export type ServiceId = (typeof serviceIds)[number];
 export type Page = 'overview' | 'services' | 'domains' | 'logs' | 'settings';
 export type Locale = 'en' | 'pt-BR' | 'es' | 'zh-CN' | 'hi';
+export type CloseBehavior = 'ask' | 'tray' | 'exit';
+export type CloseAction = Exclude<CloseBehavior, 'ask'>;
 export interface Package {
   service: ServiceId;
   version: string;
@@ -67,6 +69,7 @@ export interface Settings {
   schemaVersion: number;
   language: string;
   theme: string;
+  closeBehavior: CloseBehavior;
   services: Record<ServiceId, ServiceSettings>;
   sites: Site[];
 }
@@ -91,6 +94,10 @@ export interface Snapshot {
 export interface EnvironmentFolder {
   path: string;
   token: string;
+}
+export interface ConfigurationReset {
+  backupPath: string;
+  removedFiles: number;
 }
 export interface EnvironmentMove {
   cleanupSource: string | null;

@@ -3,7 +3,16 @@
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, copyFile, writeFile, rm, readdir, realpath } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  copyFile,
+  writeFile,
+  readFile,
+  rm,
+  readdir,
+  realpath,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
 import { createServer } from 'node:net';
@@ -93,6 +102,9 @@ try {
   assert.equal(initial.certificate.available, false);
   assert.equal((await readdir(join(root, 'larager-data'))).includes('EBWebView'), false);
   assert.equal((await readdir(join(root, 'larager-webview'))).includes('EBWebView'), true);
+  await invoke('save_preferences', { language: 'en', theme: 'light' });
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   if (!smokeOnly) {
     const smtpPort = await freePort();
     let httpPort = await freePort();
@@ -122,28 +134,148 @@ try {
     await page.waitForFunction(() => window.scrollY === 0);
     await page.screenshot({ path: resolve(screenshot), fullPage: true });
   }
-  assert.deepEqual(errors, []);
+  const stateBeforeReset = await invoke('get_snapshot');
+  const configuration = join(root, 'larager-data/config/custom');
+  await mkdir(configuration, { recursive: true });
+  await writeFile(join(configuration, 'old.ini'), 'custom settings before reset');
+  const preserved = ['projects/kept.txt', 'data/kept.bin', 'logs/kept.log', 'secrets/kept.bin'];
+  for (const file of preserved)
+    await writeFile(join(root, 'larager-data', file), `preserved ${file}`);
+  if (!smokeOnly) await invoke('service_action', { id: 'mailpit', action: 'start' });
+  await invoke('save_close_behavior', { behavior: 'exit' });
+  await page.locator('nav').getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.locator('.configuration-reset-panel .button').click();
+  const resetDialog = page.locator('.configuration-reset-dialog');
+  await expect(resetDialog).toBeVisible();
+  const reset = resetDialog.getByRole('button', { name: 'Reset all settings', exact: true });
+  await expect(reset).toBeDisabled();
+  await resetDialog
+    .getByText('I understand that custom settings and registered domains will be removed.', {
+      exact: true,
+    })
+    .click();
+  await reset.click();
+  await expect(resetDialog).toBeHidden({ timeout: 30_000 });
+  await expect(page.locator('.configuration-reset-result')).toBeVisible();
+  const backup = await page.locator('.configuration-reset-result code').textContent();
+  assert.ok(backup);
+  assert.equal(
+    JSON.parse(await readFile(join(backup, 'settings.json'), 'utf8')).closeBehavior,
+    'exit',
+  );
+  assert.equal(
+    await readFile(join(backup, 'config/custom/old.ini'), 'utf8'),
+    'custom settings before reset',
+  );
+  await assert.rejects(readFile(join(configuration, 'old.ini')));
+  for (const file of preserved)
+    assert.equal(await readFile(join(root, 'larager-data', file), 'utf8'), `preserved ${file}`);
+  const resetState = await invoke('get_snapshot');
+  assert.equal(resetState.settings.language, 'auto');
+  assert.equal(resetState.settings.theme, 'system');
+  assert.equal(resetState.settings.closeBehavior, 'ask');
+  assert.equal(
+    resetState.services.some((service) => service.pid !== null),
+    false,
+  );
+  for (const id of Object.keys(stateBeforeReset.settings.services)) {
+    assert.deepEqual(
+      resetState.settings.services[id].installations,
+      stateBeforeReset.settings.services[id].installations,
+    );
+    assert.equal(
+      resetState.settings.services[id].activeVersion,
+      stateBeforeReset.settings.services[id].activeVersion,
+    );
+  }
+  await invoke('save_preferences', { language: 'en', theme: 'light' });
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   const powershell = join(
     process.env.SystemRoot ?? 'C:\\Windows',
     'System32/WindowsPowerShell/v1.0/powershell.exe',
   );
-  await promisify(execFile)(
-    powershell,
-    [
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      `(Get-Process -Id ${child.pid}).CloseMainWindow() | Out-Null`,
-    ],
-    { windowsHide: true },
+  const shell = (script) =>
+    promisify(execFile)(powershell, ['-NoProfile', '-NonInteractive', '-Command', script], {
+      windowsHide: true,
+    });
+  const handle = Number(
+    (await shell(`(Get-Process -Id ${child.pid}).MainWindowHandle`)).stdout.trim(),
   );
+  assert.ok(Number.isSafeInteger(handle) && handle > 0, 'Native main window handle is missing');
+  // tray-icon 0.25 uses tray_icon_app / callback 6002 with WM_LBUTTONUP (514).
+  // Restore through this process's real tray handler. External ShowWindow calls
+  // desynchronize Tao's cached visibility flags and invalidate subsequent checks.
+  const windowHelper = `using System;
+using System.Runtime.InteropServices;
+public class TrayCheckWindow {
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string name, string title);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint process);
+  public static void Restore(uint process) {
+    IntPtr window = IntPtr.Zero;
+    while ((window = FindWindowEx(IntPtr.Zero, window, "tray_icon_app", null)) != IntPtr.Zero) {
+      uint owner;
+      GetWindowThreadProcessId(window, out owner);
+      if (owner == process) {
+        if (!PostMessage(window, 6002, IntPtr.Zero, new IntPtr(514))) throw new Exception("Tray callback failed");
+        return;
+      }
+    }
+    throw new Exception("Tray window was not registered");
+  }
+}`;
+  const nativeWindow = (action) =>
+    shell(
+      `Add-Type -TypeDefinition '${windowHelper}'; ${
+        action === 'close'
+          ? `[TrayCheckWindow]::PostMessage([IntPtr]${handle}, 16, [IntPtr]::Zero, [IntPtr]::Zero)`
+          : `[TrayCheckWindow]::Restore(${child.pid})`
+      } | Out-Null`,
+    );
+  const visible = () => invoke('plugin:window|is_visible', { label: 'main' });
+  const restoreWindow = async () => {
+    await nativeWindow('restore');
+    await expect.poll(visible).toBe(true);
+  };
+  const dialog = page.getByRole('dialog', { name: 'What would you like to do?', exact: true });
+  assert.equal(initial.settings.closeBehavior, 'ask');
+  await nativeWindow('close');
+  await expect(dialog).toBeVisible();
+  await dialog.getByText('Remember my choice', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  assert.equal((await invoke('get_snapshot')).settings.closeBehavior, 'ask');
+  for (const remember of [false, true]) {
+    await nativeWindow('close');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('checkbox')).not.toBeChecked();
+    if (remember) await dialog.getByText('Remember my choice', { exact: true }).click();
+    await dialog.getByRole('button', { name: 'Minimize to tray', exact: true }).click();
+    await expect.poll(visible).toBe(false);
+    assert.equal(exited, false, 'Minimizing to the tray terminated the process');
+    assert.equal((await invoke('get_snapshot')).settings.closeBehavior, remember ? 'tray' : 'ask');
+    await restoreWindow();
+  }
+  await nativeWindow('close');
+  await expect.poll(visible).toBe(false);
+  assert.equal(await invoke('get_close_request'), false);
+  await restoreWindow();
+  await invoke('save_close_behavior', { behavior: 'ask' });
+  await nativeWindow('close');
+  await expect(dialog).toBeVisible();
+  await dialog.getByText('Remember my choice', { exact: true }).click();
+  assert.deepEqual(errors, []);
+  await dialog.getByRole('button', { name: 'Exit application', exact: true }).click();
   for (let attempt = 0; attempt < 60 && !exited; attempt++) await delay(250);
   assert.equal(exited, true, 'The main window did not shut down cleanly');
   assert.equal(exitCode, 0, 'The application exited with an error');
+  const stored = JSON.parse(await readFile(join(root, 'larager-data/settings.json'), 'utf8'));
+  assert.equal(stored.closeBehavior, 'exit');
   console.log(
     smokeOnly
-      ? 'Verified packaged WebView2, real IPC, portable storage, separate browser profile, and application shutdown.'
-      : 'Verified packaged WebView2, real IPC, empty first run, portable storage, separate browser profile, Mailpit download/start/stop, local Monaco, and application shutdown.',
+      ? 'Verified packaged WebView2, real IPC, portable storage, separate browser profile, configuration reset/backup/data preservation, close prompt/cancel, tray hiding, remembered preferences, and clean exit.'
+      : 'Verified packaged WebView2, real IPC, empty first run, portable storage, separate browser profile, Mailpit download/start/stop, local Monaco, configuration reset/backup/data preservation, close prompt/cancel, tray hiding, remembered preferences, and clean exit.',
   );
 } finally {
   if (!exited) {

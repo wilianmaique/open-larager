@@ -9,6 +9,9 @@ import type {
   EnvironmentFolder,
   EnvironmentMove,
   EnvironmentMoveProgress,
+  CloseBehavior,
+  CloseAction,
+  ConfigurationReset,
 } from './types';
 import { serviceIds } from './types';
 import { defaultPorts } from './serviceRegistry';
@@ -35,6 +38,7 @@ export function emptySnapshot(): Snapshot {
       schemaVersion: 1,
       language: 'auto',
       theme: 'system',
+      closeBehavior: 'ask',
       sites: [],
       services: Object.fromEntries(
         serviceIds.map((id) => [
@@ -57,6 +61,14 @@ export async function call<T = void>(command: string, args?: Record<string, unkn
 }
 export const getSnapshot = () =>
   native ? call<Snapshot>('get_snapshot') : Promise.resolve(emptySnapshot());
+
+export const desktopApi = {
+  configureTray: (labels: { open: string; exit: string }) => call('configure_tray', { labels }),
+  pendingClose: () => call<boolean>('get_close_request'),
+  resolveClose: (action: CloseAction | null, remember: boolean) =>
+    call('resolve_close_request', { action, remember }),
+  saveCloseBehavior: (behavior: CloseBehavior) => call('save_close_behavior', { behavior }),
+};
 
 export const siteConfigApi = {
   read: (id: string) => call<SiteConfig>('read_site_config', { id }),
@@ -89,4 +101,8 @@ export const environmentApi = {
     }
   },
   cleanup: () => call<EnvironmentMove>('cleanup_environment'),
+};
+
+export const configurationApi = {
+  reset: () => call<ConfigurationReset>('reset_configuration'),
 };

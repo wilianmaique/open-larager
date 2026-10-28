@@ -237,15 +237,16 @@ fn transact(
     storage: &Storage,
     previous: &Settings,
     settings: &mut Settings,
-    mut changes: Vec<(PathBuf, String)>,
+    changes: impl Into<crate::storage::ConfigChanges>,
     refresh: Option<ServiceId>,
 ) -> Result<bool> {
+    let mut changes = changes.into();
     let affected: Vec<_> = ServiceId::ALL
         .into_iter()
         .filter(|id| toolchain::changed(previous, settings, *id, refresh))
         .collect();
     if affected.is_empty() {
-        storage.transaction(settings, &changes)?;
+        storage.apply(settings, &changes)?;
         return Ok(false);
     }
     // Removing the last version also unregisters it; no dangling PATH entry.
@@ -254,7 +255,9 @@ fn transact(
             settings.services.get_mut(id).unwrap().add_to_path = false;
         }
         if settings.services[id].add_to_path {
-            changes.extend(toolchain::layout(storage, settings, *id)?.files);
+            changes
+                .writes
+                .extend(toolchain::layout(storage, settings, *id)?.files);
         }
     }
     let before = environment.read()?;
@@ -266,7 +269,7 @@ fn transact(
         before,
         after,
     };
-    changes.push((
+    changes.writes.push((
         storage.root.join("config/path/registrations.json"),
         serde_json::to_string_pretty(&records)?,
     ));
@@ -283,7 +286,7 @@ fn transact(
             environment.write(journal.after.as_ref())?;
             applied = true;
         }
-        storage.transaction(settings, &changes)
+        storage.apply(settings, &changes)
     })();
     if let Err(error) = result {
         if applied {
@@ -453,11 +456,21 @@ pub fn transaction(
     changes: Vec<(PathBuf, String)>,
     refresh: Option<ServiceId>,
 ) -> Result<()> {
+    transaction_changes(storage, previous, settings, changes.into(), refresh)
+}
+
+pub fn transaction_changes(
+    storage: &Storage,
+    previous: &Settings,
+    settings: &mut Settings,
+    changes: crate::storage::ConfigChanges,
+    refresh: Option<ServiceId>,
+) -> Result<()> {
     let relevant = ServiceId::ALL
         .iter()
         .any(|id| toolchain::changed(previous, settings, *id, refresh));
     if !relevant {
-        return storage.transaction(settings, &changes);
+        return storage.apply(settings, &changes);
     }
     #[cfg(windows)]
     {
@@ -1225,6 +1238,45 @@ mod tests {
         update(&fake, &storage, &enabled, &mut removed);
         assert!(!removed.services[&ServiceId::Php].add_to_path);
         assert_eq!(fake.read().unwrap().unwrap().text, "C:\\External");
+    }
+
+    #[test]
+    fn configuration_reset_unregisters_only_owned_path_entries_and_removes_custom_files() {
+        let workspace = tempfile::tempdir().unwrap();
+        let storage = Storage::open(workspace.path().to_owned()).unwrap();
+        let previous = installed(&storage);
+        let fake = Fake::new("C:\\External;C:\\Other", true);
+        let mut enabled = previous.clone();
+        enabled
+            .services
+            .get_mut(&ServiceId::Php)
+            .unwrap()
+            .add_to_path = true;
+        update(&fake, &storage, &previous, &mut enabled);
+        let obsolete = storage.root.join("config/custom/obsolete.ini");
+        crate::storage::atomic_write(&obsolete, b"custom setting").unwrap();
+        let mut plan = crate::reset::prepare(&storage, &enabled).unwrap();
+        let backup = plan.backup(&storage).unwrap();
+        transact(
+            &fake,
+            &storage,
+            &enabled,
+            &mut plan.settings,
+            plan.changes,
+            None,
+        )
+        .unwrap();
+        assert_eq!(fake.read().unwrap().unwrap().text, "C:\\External;C:\\Other");
+        assert!(registrations(&storage).unwrap().is_empty());
+        assert!(!obsolete.exists());
+        assert_eq!(
+            fs::read(backup.join("config/custom/obsolete.ini")).unwrap(),
+            b"custom setting"
+        );
+        assert_eq!(
+            plan.settings.services[&ServiceId::Php].active_version,
+            enabled.services[&ServiceId::Php].active_version
+        );
     }
 
     #[test]

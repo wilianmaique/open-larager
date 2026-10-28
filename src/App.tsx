@@ -29,6 +29,7 @@ import { ServiceDrawer } from './ServiceDrawer';
 import { Domains } from './Domains';
 import { LogsPage } from './Logs';
 import { Settings } from './Settings';
+import { CloseAppDialog } from './CloseAppDialog';
 
 const pages = ['overview', 'services', 'domains', 'logs', 'settings'] as const;
 const pageIcons = {
@@ -59,6 +60,7 @@ export default function App() {
   };
   return (
     <MotionConfig reducedMotion="user">
+      <CloseAppDialog />
       <div className="app-shell">
         {mobileNav && (
           <button

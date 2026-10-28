@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { serviceIds, type EnvironmentMoveProgress, type FileFailure } from '../src/types';
 import { defaultPorts, services } from '../src/serviceRegistry';
 import catalog from '../src-tauri/catalog/packages.json' with { type: 'json' };
+import { dictionaries } from '../src/i18n';
 
 async function navigate(page: Page, name: string) {
   const menu = page.getByRole('button', { name: 'Environment', exact: true });
@@ -24,6 +25,10 @@ async function mockNative(page: Page) {
       const extensionCalls: Record<string, unknown>[] = [];
       const environmentCalls: { command: string; args: Record<string, unknown> }[] = [];
       const callbacks = new Map<number, (value: unknown) => void>();
+      const listeners = new Map<string, number>();
+      const desktopCalls: { command: string; args: Record<string, unknown> }[] = [];
+      const resetCalls: string[] = [];
+      let closePending = false;
       let callbackId = 0;
       const defaults =
         'index index.php index.html;\nclient_max_body_size 64m;\nlocation / { try_files $uri $uri/ /index.php?$query_string; }\n';
@@ -48,6 +53,7 @@ async function mockNative(page: Page) {
           schemaVersion: 1,
           language: 'en',
           theme: 'light',
+          closeBehavior: 'ask',
           sites: [] as Record<string, unknown>[],
           services: Object.fromEntries(
             ids.map((id) => [
@@ -72,6 +78,17 @@ async function mockNative(page: Page) {
         })),
       };
       Object.assign(window, {
+        __resetCalls: resetCalls,
+        __failConfigurationReset: false,
+        __holdConfigurationReset: false,
+        __desktopCalls: desktopCalls,
+        __failCloseAction: false,
+        __failTray: false,
+        __requestClose: () => {
+          closePending = true;
+          const callback = callbacks.get(listeners.get('app-close-requested')!);
+          callback?.({ event: 'app-close-requested', id: 1, payload: null });
+        },
         __extensionCalls: extensionCalls,
         __failExtensionInstall: false,
         __environmentCalls: environmentCalls,
@@ -106,7 +123,65 @@ async function mockNative(page: Page) {
               }
               return structuredClone(state);
             }
+            if (command === 'plugin:event|listen') {
+              listeners.set(String(args.event), Number(args.handler));
+              return Number(args.handler);
+            }
             if (command.startsWith('plugin:event|')) return 1;
+            if (command === 'reset_configuration') {
+              resetCalls.push(command);
+              if (Reflect.get(window, '__holdConfigurationReset')) {
+                await new Promise<void>((resolve) =>
+                  Reflect.set(window, '__continueConfigurationReset', resolve),
+                );
+              }
+              if (Reflect.get(window, '__failConfigurationReset'))
+                throw new Error(
+                  'A configuration file is locked. Close the external editor and try again.',
+                );
+              state.settings.language = 'auto';
+              state.settings.theme = 'system';
+              state.settings.closeBehavior = 'ask';
+              state.settings.sites = [];
+              rules = null;
+              for (const id of ids) {
+                const service = state.settings.services[id];
+                service.ports = [...ports[id]];
+                service.autoStart = false;
+                service.addToPath = false;
+                const status = state.services.find((service) => service.id === id)!;
+                status.status = status.version
+                  ? definitions[id].daemon
+                    ? 'stopped'
+                    : 'ready'
+                  : 'notInstalled';
+                status.pid = null;
+                status.uptime = 0;
+              }
+              return {
+                backupPath: `${state.root}\\backups\\configuration-reset-test`,
+                removedFiles: 5,
+              };
+            }
+            if (command === 'configure_tray') {
+              desktopCalls.push({ command, args });
+              if (Reflect.get(window, '__failTray')) throw new Error('Tray creation failed');
+              return;
+            }
+            if (command === 'get_close_request')
+              return closePending || Boolean(Reflect.get(window, '__initialClosePending'));
+            if (command === 'save_close_behavior') {
+              desktopCalls.push({ command, args });
+              state.settings.closeBehavior = String(args.behavior);
+              return;
+            }
+            if (command === 'resolve_close_request') {
+              desktopCalls.push({ command, args });
+              if (Reflect.get(window, '__failCloseAction')) throw new Error('Settings save failed');
+              if (args.remember && args.action) state.settings.closeBehavior = String(args.action);
+              closePending = false;
+              return;
+            }
             if (command === 'choose_environment_folder') {
               environmentCalls.push({ command, args });
               return Reflect.get(window, '__cancelEnvironmentPicker')
@@ -315,6 +390,306 @@ async function mockNative(page: Page) {
     { ids: [...serviceIds], ports: defaultPorts, definitions: services },
   );
 }
+
+test('configuration reset explains its scope, requires acknowledgement, and can be cancelled', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  const open = page
+    .locator('.configuration-reset-panel')
+    .getByRole('button', { name: 'Reset all settings', exact: true });
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Reset all settings?', exact: true });
+  await expect(dialog).toContainText('Custom files in config/');
+  await expect(dialog).toContainText('Registered domains and custom site rules are removed');
+  await expect(dialog).toContainText('Installed packages and the currently active versions');
+  await expect(dialog).toContainText('Projects, databases, logs and environment credentials');
+  await expect(dialog).toContainText('Windows hosts file and Windows certificate trust');
+  await expect(dialog).toContainText('Services will be stopped and stay stopped');
+  await expect(dialog).toContainText('verified copy of settings.json and config/');
+  const confirm = dialog.getByRole('button', { name: 'Reset all settings', exact: true });
+  await expect(confirm).toBeDisabled();
+  await dialog.getByRole('checkbox').focus();
+  await page.keyboard.press('Space');
+  await expect(confirm).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await open.click();
+  await expect(dialog.getByRole('checkbox')).not.toBeChecked();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(await page.evaluate(() => Reflect.get(window, '__resetCalls'))).toEqual([]);
+});
+
+test('configuration reset restores preferences and stops services while preserving installed packages', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  const version = catalog.packages.find((entry) => entry.service === 'php')!.version;
+  await page.evaluate(async (version) => {
+    const invoke = Reflect.get(window, '__TAURI_INTERNALS__').invoke;
+    await invoke('install_package', { id: 'php', version, addToPath: true });
+    await invoke('service_action', { id: 'php', action: 'start' });
+    await invoke('save_preferences', { language: 'en', theme: 'dark' });
+    await invoke('save_close_behavior', { behavior: 'exit' });
+    await invoke('save_site', {
+      site: { hostname: 'old.test', root: 'C:\\Projects\\kept', server: 'nginx' },
+    });
+  }, version);
+  await navigate(page, 'Settings');
+  const root = await page.locator('.storage-panel .workspace-path').textContent();
+  await page
+    .locator('.configuration-reset-panel')
+    .getByRole('button', { name: 'Reset all settings', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Reset all settings?', exact: true });
+  await dialog
+    .getByText('I understand that custom settings and registered domains will be removed.', {
+      exact: true,
+    })
+    .click();
+  await dialog.getByRole('button', { name: 'Reset all settings', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  const result = page.locator('.configuration-reset-result');
+  await expect(result).toContainText('Settings restored. Services remain stopped.');
+  await expect(result).toContainText('configuration-reset-test');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(
+    page.getByRole('combobox', { name: 'When closing the window', exact: true }),
+  ).toHaveText('Ask every time');
+  await expect(page.locator('.storage-panel .workspace-path')).toHaveText(root!);
+  const state = await page.evaluate(() =>
+    Reflect.get(window, '__TAURI_INTERNALS__').invoke('get_snapshot'),
+  );
+  expect(state.settings.language).toBe('auto');
+  expect(state.settings.sites).toEqual([]);
+  expect(state.settings.services.php.activeVersion).toBe(version);
+  expect(state.settings.services.php.installations).toHaveLength(1);
+  expect(state.settings.services.php.addToPath).toBe(false);
+  expect(state.services.find((service: { id: string }) => service.id === 'php').status).toBe(
+    'stopped',
+  );
+  expect(await page.evaluate(() => Reflect.get(window, '__resetCalls'))).toEqual([
+    'reset_configuration',
+  ]);
+  await result.screenshot({ path: test.info().outputPath('configuration-reset-success.png') });
+});
+
+test('configuration reset keeps confirmation open during work and supports retry after failure', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  await page.evaluate(() => {
+    Reflect.set(window, '__holdConfigurationReset', true);
+    Reflect.set(window, '__failConfigurationReset', true);
+  });
+  await page
+    .locator('.configuration-reset-panel')
+    .getByRole('button', { name: 'Reset all settings', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Reset all settings?', exact: true });
+  await dialog.getByRole('checkbox').focus();
+  await page.keyboard.press('Space');
+  await dialog.getByRole('button', { name: 'Reset all settings', exact: true }).click();
+  await expect(
+    dialog.getByRole('button', { name: 'Resetting settings…', exact: true }),
+  ).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await page.evaluate(() => Reflect.get(window, '__continueConfigurationReset')());
+  await expect(dialog.getByRole('alert')).toContainText('A configuration file is locked');
+  await expect(dialog.getByRole('checkbox')).toBeChecked();
+  await expect(
+    dialog.getByRole('button', { name: 'Reset all settings', exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(() => {
+    Reflect.set(window, '__holdConfigurationReset', false);
+    Reflect.set(window, '__failConfigurationReset', false);
+  });
+  await dialog.getByRole('button', { name: 'Reset all settings', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(await page.evaluate(() => Reflect.get(window, '__resetCalls'))).toHaveLength(2);
+});
+
+test('configuration reset scope and confirmation are translated in all five languages', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  for (const [locale, label] of [
+    ['en', 'English'],
+    ['pt-BR', 'Português (Brasil)'],
+    ['es', 'Español'],
+    ['zh-CN', '简体中文'],
+    ['hi', 'हिन्दी'],
+  ] as const) {
+    await page.locator('.language-select').click();
+    await page.getByRole('option', { name: label, exact: true }).click();
+    const text = dictionaries[locale];
+    await page
+      .locator('.configuration-reset-panel')
+      .getByRole('button', { name: text.resetConfiguration, exact: true })
+      .click();
+    const dialog = page.getByRole('dialog', { name: text.resetConfirmTitle, exact: true });
+    await expect(dialog).toContainText(text.resetChangesFiles);
+    await expect(dialog).toContainText(text.resetPreserveData);
+    await expect(
+      dialog.getByRole('button', { name: text.resetConfiguration, exact: true }),
+    ).toBeDisabled();
+    await expect(
+      dialog.getByRole('checkbox', { name: text.resetConfirmation, exact: true }),
+    ).toBeVisible();
+    if (locale === 'pt-BR')
+      await dialog.screenshot({ path: test.info().outputPath('configuration-reset-pt.png') });
+    await dialog.getByRole('button', { name: text.cancel, exact: true }).click();
+    await expect(dialog).toBeHidden();
+  }
+  expect(await page.evaluate(() => Reflect.get(window, '__resetCalls'))).toEqual([]);
+});
+
+for (const action of ['tray', 'exit'] as const) {
+  for (const remember of [false, true]) {
+    test(`closing with ${action}, remember=${remember}, and changing the setting`, async ({
+      page,
+    }) => {
+      await mockNative(page);
+      await page.goto('/');
+      await navigate(page, 'Settings');
+      const preference = page.getByRole('combobox', {
+        name: 'When closing the window',
+        exact: true,
+      });
+      await expect(preference).toHaveText('Ask every time');
+      await expect
+        .poll(() => page.evaluate(() => Reflect.get(window, '__desktopCalls').length))
+        .toBeGreaterThan(0);
+      await page.evaluate(() => Reflect.get(window, '__requestClose')());
+      const dialog = page.getByRole('dialog', { name: 'What would you like to do?', exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByRole('checkbox', { name: 'Remember my choice', exact: true }),
+      ).not.toBeChecked();
+      if (remember) await dialog.getByText('Remember my choice', { exact: true }).click();
+      await dialog
+        .getByRole('button', {
+          name: action === 'tray' ? 'Minimize to tray' : 'Exit application',
+          exact: true,
+        })
+        .click();
+      await expect(dialog).toBeHidden();
+      const resolved = await page.evaluate(() =>
+        Reflect.get(window, '__desktopCalls').filter(
+          (call: { command: string }) => call.command === 'resolve_close_request',
+        ),
+      );
+      expect(resolved).toEqual([{ command: 'resolve_close_request', args: { action, remember } }]);
+      await expect(preference).toHaveText(
+        remember ? (action === 'tray' ? 'Minimize to tray' : 'Exit application') : 'Ask every time',
+      );
+      await preference.click();
+      await page.getByRole('option', { name: 'Exit application', exact: true }).click();
+      await expect(preference).toHaveText('Exit application');
+      await preference.click();
+      await page.getByRole('option', { name: 'Minimize to tray', exact: true }).click();
+      await expect(preference).toHaveText('Minimize to tray');
+      await preference.click();
+      await page.getByRole('option', { name: 'Ask every time', exact: true }).click();
+      await expect(preference).toHaveText('Ask every time');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    });
+  }
+}
+
+test('close prompt cancels safely, avoids duplicates and preserves failed choices for retry', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  const request = () => page.evaluate(() => Reflect.get(window, '__requestClose')());
+  await request();
+  const dialog = page.getByRole('dialog', { name: 'What would you like to do?', exact: true });
+  await expect(dialog).toBeVisible();
+  await request();
+  await expect(dialog).toHaveCount(1);
+  await dialog.getByText('Remember my choice', { exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('combobox', { name: 'When closing the window' })).toHaveText(
+    'Ask every time',
+  );
+  await request();
+  await expect(dialog.getByRole('checkbox')).not.toBeChecked();
+  await page.evaluate(() => Reflect.set(window, '__failCloseAction', true));
+  await dialog.getByText('Remember my choice', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'Minimize to tray', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Could not complete this action');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('checkbox')).toBeChecked();
+  await page.evaluate(() => Reflect.set(window, '__failCloseAction', false));
+  await dialog.screenshot({ path: test.info().outputPath('close-app-dialog.png') });
+  await dialog.getByRole('button', { name: 'Minimize to tray', exact: true }).click();
+  await expect(dialog).toBeHidden();
+});
+
+test('close during startup is recovered and an unavailable tray keeps the window accessible', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.addInitScript(() => {
+    Reflect.set(window, '__initialClosePending', true);
+    Reflect.set(window, '__failTray', true);
+  });
+  await page.goto('/');
+  const dialog = page.getByRole('dialog', { name: 'What would you like to do?', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole('button', { name: 'Minimize to tray', exact: true }),
+  ).toBeDisabled();
+  await expect(dialog.getByRole('status')).toContainText('The system tray is unavailable');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).toBeHidden();
+});
+
+test('close choices and tray labels follow the selected language', async ({ page }) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  await page.getByRole('combobox', { name: 'Language', exact: true }).click();
+  await page.getByRole('option', { name: 'Português (Brasil)', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Ao fechar a janela', exact: true })).toHaveText(
+    'Perguntar sempre',
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Reflect.get(window, '__desktopCalls')
+            .filter((call: { command: string }) => call.command === 'configure_tray')
+            .at(-1)?.args,
+      ),
+    )
+    .toEqual({ labels: { open: 'Abrir Open Larager', exit: 'Sair do aplicativo' } });
+  await page.evaluate(() => Reflect.get(window, '__requestClose')());
+  const dialog = page.getByRole('dialog', { name: 'O que você deseja fazer?', exact: true });
+  await expect(
+    dialog.getByRole('checkbox', { name: 'Lembrar minha escolha', exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole('button', { name: 'Minimizar na bandeja', exact: true }),
+  ).toBeEnabled();
+  await dialog.screenshot({ path: test.info().outputPath('close-app-dialog-pt.png') });
+  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+});
 
 test('clean start, responsive pages and complete locale switching', async ({ page }) => {
   const errors: string[] = [];

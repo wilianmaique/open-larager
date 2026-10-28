@@ -4,6 +4,12 @@ Gerenciador de ambientes de desenvolvimento para **Windows 11 x64**, feito com T
 
 PHP, Node.js com npm/npx, Composer, Apache, MySQL, PostgreSQL, Nginx, Redis, Mailpit e o gateway HTTPS Caddy são baixados individualmente, conforme a escolha do usuário. Cada download é verificado pelo SHA-256 fixado no catálogo. As distribuições usam ZIP; Composer usa o PHAR oficial. Nenhum instalador desses componentes é executado e nenhum serviço do Windows é registrado.
 
+Ao fechar a janela, escolha **Minimizar na bandeja** para manter os serviços ativos ou **Sair do aplicativo** para aguardar as operações pendentes, parar os serviços e encerrar. **Lembrar minha escolha** aplica a decisão aos próximos fechamentos; altere em **Configurações → Ao fechar a janela**, incluindo **Perguntar sempre**. Clique no ícone da bandeja para restaurar a janela; o menu também oferece abrir e sair.
+
+Em **Configurações → Restaurar todas as configurações**, confira a lista de alterações e marque a confirmação. A ação para os serviços, restaura idioma/tema/fechamento e portas, desativa inicialização automática, remove somente as entradas de PATH pertencentes ao app, limpa domínios e regras e recria os arquivos em `config/` para todas as versões instaladas. Isso restaura também o `php.ini`, extensões padrão e o pacote público de CAs. Pacotes e versões ativas, projetos, bancos, logs, credenciais, CA local e localização do ambiente são preservados; `hosts` e confiança de certificados do Windows não são alterados. Para remover entradas antigas do `hosts` após limpar os domínios, use **Aplicar hosts** na página de domínios.
+
+Antes da limpeza, o app salva uma cópia verificada de `settings.json` e `config/` em `backups/configuration-reset-<id>/`. Falhas nas alterações de arquivos ou PATH revertem a transação; os serviços ficam parados. O reset é bloqueado durante outras operações ou uma mudança de pasta pendente, recusa links/junctions e projetos dentro de `config/`, e limita o backup a 64 MiB. Dados em `projects/`, `data/`, `logs/` e `secrets/` ficam fora da limpeza. Configurações internas armazenadas pelos próprios bancos e ferramentas em `data/` também são preservadas.
+
 ## Executar e compilar
 
 Para desenvolver: Node.js 22.12+, pnpm 12.15, Rust MSVC 1.90+ e as ferramentas C++ do Visual Studio. Veja os [pré-requisitos oficiais do Tauri](https://v2.tauri.app/start/prerequisites/).
@@ -45,6 +51,10 @@ Também é possível servir arquivos estáticos ou encaminhar um domínio para u
 No painel do PHP, abra **Extensões**, busque a extensão e clique em **Ativar** ou **Instalar e ativar**. O app identifica a versão real do PHP, x64, TS/NTS e compilador. Extensões incluídas na distribuição usam suas próprias DLLs; Redis, Xdebug, APCu e igbinary usam builds PECL oficiais com SHA-256 fixado. Sem build compatível, a instalação fica indisponível. Extensões integradas ao executável aparecem sem ação de remoção.
 
 O app preserva as demais opções do `php.ini`, ativa dependências incluídas quando necessárias e testa o carregamento antes de aplicar. PHP em execução reinicia automaticamente; se o reinício falhar, o app tenta restaurar a configuração e iniciar o estado anterior. PHP parado continua parado. Nginx, Apache e Caddy mantêm seus listeners. Cada versão do PHP mantém suas próprias escolhas, inclusive ao trocar a versão ativa; desativar preserva as DLLs em cache. O Composer e o comando `php` registrado no PATH usam automaticamente a configuração gerenciada.
+
+O `php.ini` inclui seções `[curl]` e `[openssl]`, com `curl.cainfo` e `openssl.cafile` apontando ao pacote público Mozilla em `config/certificates/mozilla-<data>.pem`. O arquivo acompanha o app com origem e SHA-256 fixados, licença MPL 2.0 e validação de integridade; sua preparação funciona offline. Instalações existentes recebem as diretivas ausentes ou vazias ao reabrir o app, com backup `php.previous`. Caminhos personalizados e as demais opções são preservados. CLI, subprocessos, Composer e FastCGI usam o mesmo `php.ini`; PHP já iniciado precisa ser reiniciado após uma alteração manual.
+
+A validação TLS permanece ativa. A CA local do Caddy e o armazenamento de certificados do Windows são independentes desse pacote público. Para proxy corporativo ou CA própria, use um PEM separado com as autoridades necessárias e configure explicitamente as duas diretivas; arquivos `mozilla-<data>.pem` são reservados ao app. Não edite o pacote fixado. Ao mover o ambiente pelo app, seus caminhos gerenciados são atualizados.
 
 ## Comandos no terminal
 

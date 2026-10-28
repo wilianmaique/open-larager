@@ -14,6 +14,13 @@ pub fn ensure(storage: &Storage, id: ServiceId, version: &str, settings: &Settin
     let path = storage.config(id, version);
     if !path.exists() || id == ServiceId::Caddy {
         atomic_write(&path, generate(storage, id, version, settings)?.as_bytes())?;
+    } else if id == ServiceId::Php {
+        let before = read(storage, id, version)?;
+        let after = crate::php_tls::configure(storage, &before)?;
+        if after != before {
+            atomic_write(&path.with_extension("previous"), before.as_bytes())?;
+            atomic_write(&path, after.as_bytes())?;
+        }
     }
     if id == ServiceId::Nginx {
         for (file, content) in crate::sites::files(storage, settings)? {
@@ -34,6 +41,25 @@ pub fn generate(
     id: ServiceId,
     version: &str,
     settings: &Settings,
+) -> Result<String> {
+    generate_defaults(storage, id, version, settings, true)
+}
+
+pub(crate) fn reset_defaults(
+    storage: &Storage,
+    id: ServiceId,
+    version: &str,
+    settings: &Settings,
+) -> Result<String> {
+    generate_defaults(storage, id, version, settings, false)
+}
+
+fn generate_defaults(
+    storage: &Storage,
+    id: ServiceId,
+    version: &str,
+    settings: &Settings,
+    provision_ca: bool,
 ) -> Result<String> {
     let service = settings
         .services
@@ -173,7 +199,13 @@ CustomLog {} common
             return Err(invalid("This tool has no service configuration file"));
         }
     };
-    if id == ServiceId::Nginx {
+    if id == ServiceId::Php {
+        if provision_ca {
+            crate::php_tls::configure(storage, &generated)
+        } else {
+            crate::php_tls::configure_defaults(storage, &generated)
+        }
+    } else if id == ServiceId::Nginx {
         crate::sites::attach(&generated, storage)
     } else {
         Ok(generated)
