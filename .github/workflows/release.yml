@@ -1,0 +1,67 @@
+name: Windows release
+run-name: Prepare release ${{ inputs.tag || github.ref_name }}
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag (for example v0.1.0 or v0.2.0-rc.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+    with:
+      release-tag: ${{ inputs.tag || github.ref_name }}
+
+  draft:
+    name: Prepare draft and attach downloads
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: windows-x64-release
+          path: release-assets
+      - name: Verify download checksums
+        working-directory: release-assets
+        run: sha256sum --check SHA256SUMS.txt
+      - name: Create or update draft
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft > release.json; then
+            if ! jq -e '.isDraft == true' release.json > /dev/null; then
+              echo 'This release is already published. Create a new version instead.' >&2
+              exit 1
+            fi
+            gh release upload "$RELEASE_TAG" release-assets/*.exe release-assets/*.zip release-assets/SHA256SUMS.txt --clobber
+          else
+            flags=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              flags+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" \
+              release-assets/*.exe release-assets/*.zip release-assets/SHA256SUMS.txt \
+              --verify-tag --draft --title "Open Larager $RELEASE_TAG" \
+              --generate-notes --notes-file release-assets/RELEASE-NOTES.md "${flags[@]}"
+          fi
+          url=$(gh release view "$RELEASE_TAG" --json url --jq .url)
+          printf '### Release ready for review\n\n[Open draft](%s)\n\nReview the notes and downloads, then select **Publish release**.\n' "$url" >> "$GITHUB_STEP_SUMMARY"

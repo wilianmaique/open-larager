@@ -6,7 +6,7 @@ PHP, Node.js com npm/npx, Composer, Apache, MySQL, PostgreSQL, Nginx, Redis, Mai
 
 ## Executar e compilar
 
-Para desenvolver: Node.js 22.12+, pnpm 11.21, Rust MSVC 1.90+ e as ferramentas C++ do Visual Studio. Veja os [pré-requisitos oficiais do Tauri](https://v2.tauri.app/start/prerequisites/).
+Para desenvolver: Node.js 22.12+, pnpm 12.15, Rust MSVC 1.90+ e as ferramentas C++ do Visual Studio. Veja os [pré-requisitos oficiais do Tauri](https://v2.tauri.app/start/prerequisites/).
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -22,6 +22,12 @@ pnpm desktop:build
 Resultado: `src-tauri/target/release/open-larager.exe`. O executável contém a interface e o motor; não contém PHP, bancos, servidores, Node.js ou Rust. O WebView2 deve estar disponível no Windows. Algumas distribuições, especialmente Apache e PHP, precisam do [Microsoft Visual C++ Redistributable x64](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). O app não instala esse pré-requisito silenciosamente.
 
 `pnpm dev` abre somente a prévia da interface no navegador. As operações do sistema funcionam no executável Tauri.
+
+## Publicar uma versão
+
+O workflow **Windows verification** verifica branches e pull requests. O **Windows release** roda ao enviar uma tag `vX.Y.Z`, reaproveita essas verificações e prepara um **rascunho** no GitHub Releases com instalador `.exe`, ZIP portátil e SHA-256. Para gerar somente o instalador localmente, use `pnpm desktop:bundle`.
+
+Para uma nova versão, execute `pnpm release:version 0.2.0`, revise e faça commit dos cinco arquivos de versão, envie o commit e depois a tag `v0.2.0`. Aguarde o workflow, revise os downloads em **Releases** e clique em **Publish release**. Tags como `v0.2.0-rc.1` são marcadas como pré-release. Veja o [passo a passo de publicação](docs/releasing.md), incluindo assinatura de código e validações pendentes.
 
 ## Primeiro projeto com HTTPS
 

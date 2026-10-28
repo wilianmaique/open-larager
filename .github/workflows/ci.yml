@@ -1,6 +1,7 @@
 name: Windows verification
 on:
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -8,21 +9,37 @@ on:
         description: Download and run all portable distributions
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      release-tag:
+        description: Existing version tag to verify and package
+        type: string
+        required: true
 permissions:
   contents: read
 jobs:
   windows:
     runs-on: windows-2025
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ inputs.release-tag || '' }}
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.release-tag && format('refs/tags/{0}', inputs.release-tag) || '' }}
+          persist-credentials: false
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
+      - name: Check release versions
+        run: node scripts/release-version.mjs check
+      - name: Test release version tooling
+        run: node --test scripts/release-version.test.mjs
       - name: Install pnpm and Rust checks
         shell: pwsh
         run: |
-          npm install --global pnpm@11.21.0
+          npm install --global pnpm@12.15.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           rustup component add clippy rustfmt
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -37,4 +54,24 @@ jobs:
       - name: Verify real distributions
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.real-services }}
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked --test portable_lifecycle -- --ignored --nocapture --test-threads=1
-      - run: pnpm desktop:build
+      - name: Build standalone application
+        if: ${{ !inputs.release-tag }}
+        run: pnpm desktop:build -- --locked
+      - name: Build Windows installer
+        if: ${{ inputs.release-tag }}
+        run: pnpm desktop:bundle
+      - name: Smoke test packaged application
+        if: ${{ inputs.release-tag }}
+        run: pnpm test:desktop --smoke
+      - name: Package release downloads
+        if: ${{ inputs.release-tag }}
+        shell: pwsh
+        run: ./scripts/package-release.ps1
+      - name: Save release downloads
+        if: ${{ inputs.release-tag }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: windows-x64-release
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
