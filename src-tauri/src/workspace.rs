@@ -832,7 +832,11 @@ mod tests {
             b"external addition"
         );
         assert_eq!(fs::read_dir(&target).unwrap().count(), 0);
-        assert_eq!(workspace.engine.read().await.storage.root, source);
+        // Windows CI may supply an 8.3 TEMP alias; Storage resolves its full path.
+        assert_eq!(
+            normalized(&workspace.engine.read().await.storage.root),
+            normalized(&source.canonicalize().unwrap())
+        );
     }
 
     #[tokio::test]
@@ -950,7 +954,7 @@ mod tests {
         let reopened = Workspace::open(source.clone(), preference).unwrap();
         assert_eq!(
             normalized(&reopened.engine.read().await.storage.root),
-            normalized(&target)
+            normalized(&target.canonicalize().unwrap())
         );
         assert!(
             !source.exists(),
