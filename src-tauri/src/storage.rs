@@ -1,5 +1,6 @@
 use crate::{
     error::{Result, invalid},
+    file_diagnostics::{FileOperation as Op, FileResultExt},
     model::{ServiceId, Settings, validate_version},
 };
 use fs2::FileExt;
@@ -29,21 +30,22 @@ struct JournalFile {
 
 impl Storage {
     pub fn open(root: PathBuf) -> Result<Self> {
-        fs::create_dir_all(&root)?;
+        fs::create_dir_all(&root).at(Op::Create, &root)?;
         // Most upstream Windows runtimes do not accept Win32 verbatim (\\?\) paths in CLI options.
-        let root = PathBuf::from(slash(&root.canonicalize()?));
+        let root = PathBuf::from(slash(&root.canonicalize().at(Op::Inspect, &root)?));
         let lock = OpenOptions::new()
             .create(true)
             .truncate(false)
             .read(true)
             .write(true)
-            .open(root.join("instance.lock"))?;
+            .open(root.join("instance.lock"))
+            .at(Op::Lock, &root.join("instance.lock"))?;
         lock.try_lock_exclusive()
-            .map_err(|_| invalid("This workspace is already open in another instance"))?;
+            .at(Op::Lock, &root.join("instance.lock"))?;
         for directory in [
             "packages", "config", "data", "logs", "projects", ".staging", "secrets", "backups",
         ] {
-            fs::create_dir_all(root.join(directory))?;
+            fs::create_dir_all(root.join(directory)).at(Op::Create, &root.join(directory))?;
         }
         crate::platform::secure_directory(&root)?;
         let storage = Self { root, _lock: lock };
@@ -66,7 +68,7 @@ impl Storage {
             self.save(&settings)?;
             return Ok(settings);
         }
-        let mut settings: Settings = serde_json::from_slice(&fs::read(path)?)?;
+        let mut settings: Settings = serde_json::from_slice(&fs::read(&path).at(Op::Read, &path)?)?;
         if settings.schema_version != 1 {
             return Err(invalid(
                 "Unsupported settings schema; restore a compatible backup",
@@ -97,7 +99,7 @@ impl Storage {
         if path.exists() {
             atomic_write(
                 &self.root.join("backups/settings.previous.json"),
-                &fs::read(&path)?,
+                &fs::read(&path).at(Op::Read, &path)?,
             )?;
         }
         atomic_json(&path, settings)
@@ -212,15 +214,16 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     let parent = path
         .parent()
         .ok_or_else(|| invalid("Missing parent directory"))?;
-    fs::create_dir_all(parent)?;
+    fs::create_dir_all(parent).at(Op::Create, parent)?;
     let temp = parent.join(format!(".{}.tmp", uuid::Uuid::new_v4()));
     let result = (|| {
         let mut file = OpenOptions::new()
             .create_new(true)
             .write(true)
-            .open(&temp)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
+            .open(&temp)
+            .at(Op::Create, &temp)?;
+        file.write_all(bytes).at(Op::Write, &temp)?;
+        file.sync_all().at(Op::Write, &temp)?;
         drop(file);
         replace_file(&temp, path)
     })();
@@ -239,20 +242,21 @@ fn replace_file(from: &Path, to: &Path) -> Result<()> {
         },
         core::PCWSTR,
     };
-    let from: Vec<u16> = from.as_os_str().encode_wide().chain(Some(0)).collect();
-    let to: Vec<u16> = to.as_os_str().encode_wide().chain(Some(0)).collect();
+    let from_wide: Vec<u16> = from.as_os_str().encode_wide().chain(Some(0)).collect();
+    let to_wide: Vec<u16> = to.as_os_str().encode_wide().chain(Some(0)).collect();
     unsafe {
         MoveFileExW(
-            PCWSTR(from.as_ptr()),
-            PCWSTR(to.as_ptr()),
+            PCWSTR(from_wide.as_ptr()),
+            PCWSTR(to_wide.as_ptr()),
             MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
         )
     }
-    .map_err(|e| invalid(e.to_string()))
+    .map_err(|e| std::io::Error::from_raw_os_error(e.code().0 & 0xffff))
+    .between(Op::Write, to, from)
 }
 #[cfg(not(windows))]
 fn replace_file(from: &Path, to: &Path) -> Result<()> {
-    fs::rename(from, to)?;
+    fs::rename(from, to).between(Op::Write, to, from)?;
     Ok(())
 }
 

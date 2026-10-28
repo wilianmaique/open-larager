@@ -3,6 +3,8 @@ use serde::Serialize;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("{0}")]
+    FileOperation(Box<crate::file_diagnostics::FileFailure>),
+    #[error("{0}")]
     Invalid(String),
     #[error("{0}")]
     Io(#[from] std::io::Error),
@@ -19,7 +21,10 @@ impl Serialize for Error {
         &self,
         serializer: S,
     ) -> std::result::Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_string())
+        match self {
+            Self::FileOperation(issue) => issue.serialize(serializer),
+            _ => serializer.serialize_str(&self.to_string()),
+        }
     }
 }
 

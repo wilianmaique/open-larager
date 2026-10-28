@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Open Larager",
         "width": 1320,
         "height": 900,

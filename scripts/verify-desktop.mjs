@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, copyFile, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, copyFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
 import { createServer } from 'node:net';
@@ -18,8 +18,10 @@ async function freePort() {
   await new Promise((resolve) => server.close(resolve));
   return port;
 }
-const source = resolve(process.argv[2] ?? 'src-tauri/target/release/open-larager.exe');
-const screenshot = process.argv[3];
+const smokeOnly = process.argv.includes('--smoke');
+const args = process.argv.slice(2).filter((argument) => argument !== '--smoke');
+const source = resolve(args[0] ?? 'src-tauri/target/release/open-larager.exe');
+const screenshot = args[1];
 const root = await mkdtemp(join(tmpdir(), 'open-larager-desktop-'));
 assert.equal(dirname(resolve(root)).toLowerCase(), resolve(tmpdir()).toLowerCase());
 assert.ok(basename(root).startsWith('open-larager-desktop-'));
@@ -70,38 +72,43 @@ try {
   assert.ok(page, 'No WebView page was created');
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await expect(page.locator('.service-row')).toHaveCount(8, { timeout: 20_000 });
+  await expect(page.getByTestId('service-mailpit')).toBeVisible({ timeout: 20_000 });
   const invoke = (command, args = {}) =>
     page.evaluate(({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args), {
       command,
       args,
     });
   const initial = await invoke('get_snapshot');
+  await expect(page.locator('.service-row')).toHaveCount(initial.services.length);
   assert.equal(initial.services.filter((service) => service.version).length, 0);
   assert.equal(resolve(initial.root).toLowerCase(), resolve(root, 'larager-data').toLowerCase());
   assert.equal(initial.certificate.available, false);
-  const smtpPort = await freePort();
-  let httpPort = await freePort();
-  while (httpPort === smtpPort) httpPort = await freePort();
-  await invoke('save_service', {
-    id: 'mailpit',
-    version: null,
-    ports: [smtpPort, httpPort],
-    autoStart: false,
-  });
-  await page.locator('[data-testid="service-mailpit"] .row-actions .button').click();
-  const drawer = page.locator('.service-drawer');
-  await drawer.locator('.install-select .button').click();
-  await expect(drawer.locator('.status-stopped')).toBeVisible({ timeout: 120_000 });
-  await drawer.locator('.drawer-status-actions .button').click();
-  await expect(drawer.locator('.status-running')).toBeVisible({ timeout: 15_000 });
-  const response = await fetch(`http://127.0.0.1:${httpPort}/api/v1/messages`);
-  assert.equal(response.ok, true);
-  await drawer.locator('.drawer-status-actions .button').click();
-  await expect(drawer.locator('.status-stopped')).toBeVisible({ timeout: 15_000 });
-  await drawer.locator('[role="tab"]').nth(1).click();
-  await expect(drawer.locator('.monaco-editor')).toBeVisible({ timeout: 20_000 });
-  await drawer.locator('.drawer-header .icon-button').click();
+  assert.equal((await readdir(join(root, 'larager-data'))).includes('EBWebView'), false);
+  assert.equal((await readdir(join(root, 'larager-webview'))).includes('EBWebView'), true);
+  if (!smokeOnly) {
+    const smtpPort = await freePort();
+    let httpPort = await freePort();
+    while (httpPort === smtpPort) httpPort = await freePort();
+    await invoke('save_service', {
+      id: 'mailpit',
+      version: null,
+      ports: [smtpPort, httpPort],
+      autoStart: false,
+    });
+    await page.locator('[data-testid="service-mailpit"] .row-actions .button').click();
+    const drawer = page.locator('.service-drawer');
+    await drawer.locator('.install-select .button').click();
+    await expect(drawer.locator('.status-stopped')).toBeVisible({ timeout: 120_000 });
+    await drawer.locator('.drawer-status-actions .button').click();
+    await expect(drawer.locator('.status-running')).toBeVisible({ timeout: 15_000 });
+    const response = await fetch(`http://127.0.0.1:${httpPort}/api/v1/messages`);
+    assert.equal(response.ok, true);
+    await drawer.locator('.drawer-status-actions .button').click();
+    await expect(drawer.locator('.status-stopped')).toBeVisible({ timeout: 15_000 });
+    await drawer.locator('[role="tab"]').nth(1).click();
+    await expect(drawer.locator('.monaco-editor')).toBeVisible({ timeout: 20_000 });
+    await drawer.locator('.drawer-header .icon-button').click();
+  }
   if (screenshot) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForFunction(() => window.scrollY === 0);
@@ -125,7 +132,9 @@ try {
   for (let attempt = 0; attempt < 60 && !exited; attempt++) await delay(250);
   assert.equal(exited, true, 'The main window did not shut down cleanly');
   console.log(
-    'Verified packaged WebView2, real IPC, empty first run, portable storage, Mailpit download/start/stop, local Monaco, and application shutdown.',
+    smokeOnly
+      ? 'Verified packaged WebView2, real IPC, portable storage, separate browser profile, and application shutdown.'
+      : 'Verified packaged WebView2, real IPC, empty first run, portable storage, separate browser profile, Mailpit download/start/stop, local Monaco, and application shutdown.',
   );
 } finally {
   if (!exited) {

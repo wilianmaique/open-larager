@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { serviceIds } from '../src/types';
+import { serviceIds, type FileFailure } from '../src/types';
 import { defaultPorts, services } from '../src/serviceRegistry';
 import catalog from '../src-tauri/catalog/packages.json' with { type: 'json' };
 
@@ -22,6 +22,7 @@ async function mockNative(page: Page) {
       let rules: string | null = null;
       const extensionStates = new Map<string, Set<string>>();
       const extensionCalls: Record<string, unknown>[] = [];
+      const environmentCalls: { command: string; args: Record<string, unknown> }[] = [];
       const defaults =
         'index index.php index.html;\nclient_max_body_size 64m;\nlocation / { try_files $uri $uri/ /index.php?$query_string; }\n';
       const siteConfig = (content: string | null) => ({
@@ -35,6 +36,11 @@ async function mockNative(page: Page) {
         systemLocale: 'en-US',
         hostsSynced: true,
         busyService: null,
+        environmentMove: {
+          cleanupSource: null as string | null,
+          cleanupError: null as string | null,
+          cleanupIssue: null as FileFailure | null,
+        },
         certificate: { available: false, trusted: false, fingerprint: null },
         settings: {
           schemaVersion: 1,
@@ -66,6 +72,12 @@ async function mockNative(page: Page) {
       Object.assign(window, {
         __extensionCalls: extensionCalls,
         __failExtensionInstall: false,
+        __environmentCalls: environmentCalls,
+        __cancelEnvironmentPicker: false,
+        __failEnvironmentMove: false,
+        __pendingEnvironmentCleanup: false,
+        __environmentFileFailure: null,
+        __cleanupFileFailure: null,
         isTauri: true,
         __TAURI_EVENT_PLUGIN_INTERNALS__: { unregisterListener: () => {} },
         __TAURI_INTERNALS__: {
@@ -89,6 +101,39 @@ async function mockNative(page: Page) {
               return structuredClone(state);
             }
             if (command.startsWith('plugin:event|')) return 1;
+            if (command === 'choose_environment_folder') {
+              environmentCalls.push({ command, args });
+              return Reflect.get(window, '__cancelEnvironmentPicker')
+                ? null
+                : {
+                    path: 'D:\\Larager novo',
+                    token: 'native-folder-token',
+                  };
+            }
+            if (command === 'move_environment') {
+              environmentCalls.push({ command, args });
+              if (Reflect.get(window, '__environmentFileFailure'))
+                throw structuredClone(Reflect.get(window, '__environmentFileFailure'));
+              if (Reflect.get(window, '__failEnvironmentMove'))
+                throw new Error('Copy failed. Original environment preserved.');
+              const source = state.root;
+              state.root = 'D:\\Larager novo';
+              state.environmentMove = {
+                cleanupSource: Reflect.get(window, '__pendingEnvironmentCleanup') ? source : null,
+                cleanupError: null,
+                cleanupIssue: Reflect.get(window, '__cleanupFileFailure') ?? null,
+              };
+              return structuredClone(state.environmentMove);
+            }
+            if (command === 'cleanup_environment') {
+              environmentCalls.push({ command, args });
+              state.environmentMove = {
+                cleanupSource: null,
+                cleanupError: null,
+                cleanupIssue: null,
+              };
+              return structuredClone(state.environmentMove);
+            }
             if (command === 'get_php_extensions' || command === 'set_php_extension') {
               const version = state.settings.services.php.activeVersion;
               const enabled = extensionStates.get(version ?? '') ?? new Set(['json']);
@@ -697,6 +742,202 @@ test('per-site Nginx configuration supports preview, validation errors, persiste
   ).toBeDisabled();
   await expect(editor.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
   await editor.screenshot({ path: test.info().outputPath('site-configuration.png') });
+});
+
+test('environment folder stays unchanged until confirmation and can be moved', async ({ page }) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  const path = page.locator('.workspace-path');
+  const original = await path.innerText();
+  const change = page.getByRole('button', { name: 'Change folder', exact: true });
+  await page.evaluate(() => Reflect.set(window, '__cancelEnvironmentPicker', true));
+  await change.click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(path).toHaveText(original);
+  await page.evaluate(() => Reflect.set(window, '__cancelEnvironmentPicker', false));
+  await change.click();
+  const dialog = page.getByRole('dialog', { name: 'Move environment', exact: true });
+  await expect(dialog).toContainText(original);
+  await expect(dialog).toContainText('D:\\Larager novo');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(path).toHaveText(original);
+  expect(
+    await page.evaluate(() =>
+      Reflect.get(window, '__environmentCalls').filter(
+        (call: { command: string }) => call.command === 'move_environment',
+      ),
+    ),
+  ).toEqual([]);
+  await change.click();
+  await dialog.screenshot({ path: test.info().outputPath('move-environment.png') });
+  await dialog.getByRole('button', { name: 'Move and clean old folder', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(path).toHaveText('D:\\Larager novo');
+  expect(
+    await page.evaluate(() =>
+      Reflect.get(window, '__environmentCalls').filter(
+        (call: { command: string }) => call.command === 'move_environment',
+      ),
+    ),
+  ).toEqual([{ command: 'move_environment', args: { token: 'native-folder-token' } }]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
+test('environment copy failures preserve the path and pending cleanup stays visible', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  const path = page.locator('.workspace-path');
+  const original = await path.innerText();
+  await page.getByRole('button', { name: 'Change folder', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Move environment', exact: true });
+  await page.evaluate(() => Reflect.set(window, '__failEnvironmentMove', true));
+  await dialog.getByRole('button', { name: 'Move and clean old folder', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Original environment preserved');
+  await expect(path).toHaveText(original);
+  await page.evaluate(() => {
+    Reflect.set(window, '__failEnvironmentMove', false);
+    Reflect.set(window, '__pendingEnvironmentCleanup', true);
+  });
+  await dialog.getByRole('button', { name: 'Move and clean old folder', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(path).toHaveText('D:\\Larager novo');
+  const cleanup = page.locator('.environment-cleanup');
+  await expect(cleanup).toContainText(original);
+  await expect(page.getByRole('button', { name: 'Change folder', exact: true })).toBeDisabled();
+  await cleanup.getByRole('button', { name: 'Retry pending steps', exact: true }).click();
+  await expect(cleanup).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Change folder', exact: true })).toBeEnabled();
+});
+
+test('blocked file errors show the path, operation and process in Portuguese', async ({ page }) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  await page.getByRole('combobox', { name: 'Language', exact: true }).click();
+  await page.getByRole('option', { name: /Portugu/ }).click();
+  const path =
+    'C:\\Users\\developer\\AppData\\Local\\dev.openlarager.desktop\\EBWebView\\Default\\Web Data';
+  await page.evaluate(
+    (path) =>
+      Reflect.set(window, '__environmentFileFailure', {
+        kind: 'fileOperation',
+        operation: 'read',
+        path,
+        relatedPath: null,
+        osCode: 33,
+        message:
+          'O processo não pode acessar o arquivo porque outro processo bloqueou parte do arquivo.',
+        lockCheck: 'identified',
+        diagnosticCode: null,
+        processes: [
+          {
+            pid: 1234,
+            name: 'Microsoft Edge WebView2',
+            executable: 'C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\msedgewebview2.exe',
+            currentProcess: false,
+          },
+        ],
+      }),
+    path,
+  );
+  await page.getByRole('button', { name: 'Alterar pasta', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Mover ambiente', exact: true });
+  await dialog.getByRole('button', { name: 'Mover e limpar pasta antiga', exact: true }).click();
+  const alert = dialog.getByRole('alert');
+  await expect(alert).toContainText(path);
+  await expect(alert).toContainText('Arquivo ou pasta');
+  await expect(alert).toContainText('Ler arquivo');
+  await expect(alert).toContainText('Código do Windows');
+  await expect(alert).toContainText('33');
+  await expect(alert).toContainText('PID 1234');
+  await expect(alert).toContainText('msedgewebview2.exe');
+  await expect(alert).not.toContainText('[object Object]');
+  await alert.screenshot({ path: test.info().outputPath('locked-file-details.png') });
+  await page.evaluate(() => {
+    const issue = Reflect.get(window, '__environmentFileFailure');
+    issue.lockCheck = 'notIdentified';
+    issue.processes = [];
+  });
+  await dialog.getByRole('button', { name: 'Mover e limpar pasta antiga', exact: true }).click();
+  await expect(alert).toContainText('O Windows não identificou um processo.');
+  await expect(alert).not.toContainText('PID 1234');
+  await page.evaluate(() => {
+    const issue = Reflect.get(window, '__environmentFileFailure');
+    issue.lockCheck = 'unavailable';
+    issue.diagnosticCode = 5;
+  });
+  await dialog.getByRole('button', { name: 'Mover e limpar pasta antiga', exact: true }).click();
+  await expect(alert).toContainText(
+    'O Windows não conseguiu consultar os processos deste caminho.',
+  );
+  await expect(alert).toContainText('Erro na consulta de processos: 5');
+  await expect(page.locator('.workspace-path')).not.toHaveText('D:\\Larager novo');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
+test('pending cleanup diagnostics survive snapshot refresh and returning to settings', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  await page.evaluate(() => {
+    Reflect.set(window, '__pendingEnvironmentCleanup', true);
+    Reflect.set(window, '__cleanupFileFailure', {
+      kind: 'fileOperation',
+      operation: 'remove',
+      path: 'C:\\Larager\\data\\mysql\\database.ibd',
+      relatedPath: null,
+      osCode: 32,
+      message: 'The file is in use.',
+      lockCheck: 'identified',
+      diagnosticCode: null,
+      processes: [
+        {
+          pid: 5678,
+          name: 'Backup app',
+          executable: 'C:\\Tools\\backup.exe',
+          currentProcess: false,
+        },
+      ],
+    });
+  });
+  await page.getByRole('button', { name: 'Change folder', exact: true }).click();
+  await page.getByRole('button', { name: 'Move and clean old folder', exact: true }).click();
+  await expect(page.locator('.environment-cleanup')).toContainText('PID 5678');
+  await navigate(page, 'Services');
+  await navigate(page, 'Settings');
+  await expect(page.locator('.environment-cleanup')).toContainText('backup.exe');
+  await expect(page.locator('.environment-cleanup')).toContainText('database.ibd');
+  await expect(page.locator('.workspace-path')).toHaveText('D:\\Larager novo');
+  await page.getByRole('button', { name: 'Retry pending steps', exact: true }).click();
+  await expect(page.locator('.environment-cleanup')).toBeHidden();
+});
+
+test('running services block changing the environment folder', async ({ page }) => {
+  await mockNative(page);
+  await page.goto('/');
+  await page
+    .getByTestId('service-php')
+    .getByRole('button', { name: 'Install', exact: true })
+    .click();
+  const service = page.getByRole('dialog', { name: 'PHP settings', exact: true });
+  await service.getByRole('button', { name: 'Download & install', exact: true }).click();
+  await service.getByRole('button', { name: 'Start', exact: true }).click();
+  await service.getByRole('button', { name: 'Close', exact: true }).click();
+  await navigate(page, 'Settings');
+  await expect(page.getByRole('button', { name: 'Change folder', exact: true })).toBeDisabled();
+  await expect(
+    page.getByText('Stop all services before changing the environment folder.', { exact: false }),
+  ).toBeVisible();
 });
 
 test('keyboard search opens the selected service', async ({ page }) => {

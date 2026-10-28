@@ -1,4 +1,6 @@
 import {
+  ArrowRight,
+  FolderPen,
   FolderOpen,
   Globe2,
   HardDrive,
@@ -8,15 +10,35 @@ import {
   ShieldCheck,
   Sun,
 } from 'lucide-react';
-import { Button } from './components';
+import { useState } from 'react';
+import { Button, Dialog, DialogHeader } from './components';
 import { Select } from './controls';
-import { call } from './api';
+import { call, environmentApi, native } from './api';
+import type { EnvironmentFolder, EnvironmentMove } from './types';
+import { FileFailureDetails } from './FileFailureDetails';
 import { useApp } from './state';
 import type { Key } from './i18n';
 import catalog from '../src-tauri/catalog/packages.json';
 
 export function Settings() {
   const { t, snapshot, preferences, busy, run, locale } = useApp();
+  const [destination, setDestination] = useState<EnvironmentFolder | null>(null);
+  const [moveStatus, setMoveStatus] = useState<EnvironmentMove | null>(null);
+  const running = snapshot.services.some((service) => service.status === 'running');
+  const moveState = moveStatus ?? snapshot.environmentMove;
+  const cleanup = moveState?.cleanupSource;
+  const chooseEnvironment = () =>
+    run(async () => {
+      const folder = await environmentApi.choose();
+      if (folder) setDestination(folder);
+    });
+  const moveEnvironment = () =>
+    run(async () => {
+      if (!destination) return;
+      const status = await environmentApi.move(destination.token);
+      setMoveStatus(status);
+      setDestination(null);
+    }, t('environmentMoved'));
   return (
     <>
       <div className="page-heading">
@@ -99,14 +121,54 @@ export function Settings() {
                 <h2>{t('storage')}</h2>
                 <p>{t('storageDescription')}</p>
               </div>
-              <Button
-                onClick={() => void run(() => call('open_location', { location: 'workspace' }))}
-              >
-                <FolderOpen size={15} />
-                {t('openWorkspace')}
-              </Button>
+              <div className="storage-actions">
+                <Button
+                  disabled={busy || !snapshot.root}
+                  onClick={() => void run(() => call('open_location', { location: 'workspace' }))}
+                >
+                  <FolderOpen size={15} />
+                  {t('openWorkspace')}
+                </Button>
+                <Button
+                  disabled={
+                    busy ||
+                    running ||
+                    !!snapshot.busyService ||
+                    !!cleanup ||
+                    !native ||
+                    !snapshot.root
+                  }
+                  onClick={() => void chooseEnvironment()}
+                >
+                  <FolderPen size={15} />
+                  {t('changeEnvironment')}
+                </Button>
+              </div>
             </div>
             {snapshot.root && <code className="workspace-path">{snapshot.root}</code>}
+            <p className="field-help">
+              {t(running ? 'environmentStopFirst' : 'environmentMoveHelp')}
+            </p>
+            {cleanup && (
+              <div className="environment-cleanup" role="alert">
+                <p>{t('environmentCleanupPending')}</p>
+                <code>{cleanup}</code>
+                {moveState?.cleanupIssue ? (
+                  <FileFailureDetails issue={moveState.cleanupIssue} t={t} />
+                ) : (
+                  moveState?.cleanupError && <p>{moveState.cleanupError}</p>
+                )}
+                <Button
+                  disabled={busy || running}
+                  loading={busy}
+                  onClick={() =>
+                    void run(async () => setMoveStatus(await environmentApi.cleanup()))
+                  }
+                >
+                  {t('environmentRetryCleanup')}
+                </Button>
+              </div>
+            )}
             <div className="directory-list">
               {[
                 { dir: 'packages/', label: 'pathPackages' },
@@ -133,6 +195,51 @@ export function Settings() {
           </div>
         </div>
       </section>
+      {destination && (
+        <Dialog
+          title={t('environmentMoveTitle')}
+          className="environment-move-dialog"
+          onClose={() => {
+            if (!busy) setDestination(null);
+          }}
+        >
+          <DialogHeader
+            title={t('environmentMoveTitle')}
+            onClose={() => {
+              if (!busy) setDestination(null);
+            }}
+          />
+          <div className="dialog-content environment-move-content" aria-busy={busy}>
+            <p>{t('environmentMoveConfirm')}</p>
+            <div className="environment-move-paths">
+              <div>
+                <strong>{t('environmentCurrentFolder')}</strong>
+                <code>{snapshot.root}</code>
+              </div>
+              <ArrowRight size={18} aria-hidden="true" />
+              <div>
+                <strong>{t('environmentNewFolder')}</strong>
+                <code>{destination.path}</code>
+              </div>
+            </div>
+            <p className="field-help">{t('environmentMoveCaution')}</p>
+          </div>
+          <div data-notification-host />
+          <div className="dialog-actions">
+            <Button disabled={busy} onClick={() => setDestination(null)}>
+              {t('cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={busy || running}
+              loading={busy}
+              onClick={() => void moveEnvironment()}
+            >
+              {t(busy ? 'environmentMoving' : 'environmentMoveAction')}
+            </Button>
+          </div>
+        </Dialog>
+      )}
       <div className="about-card">
         <img src="/brand.svg" alt="" />
         <div>

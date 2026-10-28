@@ -1590,6 +1590,55 @@ progress::-webkit-progress-value {
 .notification-error .notification-dot {
   background: var(--danger);
 }
+.notification > div {
+  min-width: 0;
+}
+.file-failure {
+  font-size: 11px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.notification .file-failure {
+  max-height: min(440px, 55vh);
+  overflow: auto;
+}
+.environment-move-dialog [data-notification-host] > .notification {
+  position: relative;
+  bottom: auto;
+  right: auto;
+  max-width: none;
+  margin: 0 22px 16px;
+  box-shadow: none;
+}
+.file-failure dl {
+  margin: 12px 0;
+}
+.file-failure dl > div + div {
+  margin-top: 7px;
+}
+.file-failure dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.file-failure dd {
+  margin: 0;
+}
+.file-failure code {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.file-failure h4 {
+  margin: 12px 0 6px;
+  font-size: 11px;
+}
+.file-failure ul {
+  padding-left: 16px;
+}
+.file-failure li + li {
+  margin-top: 8px;
+}
 .search-dialog {
   margin-top: 90px;
 }
@@ -2104,6 +2153,39 @@ progress::-webkit-progress-value {
   color: var(--muted);
   overflow-wrap: anywhere;
   font-size: 10px;
+}
+.storage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.environment-move-paths {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+}
+.environment-move-paths strong {
+  font-size: 11px;
+}
+.environment-move-paths code,
+.environment-cleanup code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+  font-size: 11px;
+}
+.environment-move-paths > svg {
+  color: var(--muted);
+}
+.environment-cleanup {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.environment-cleanup .button {
+  margin-top: 12px;
 }
 .directory-list {
   display: grid;

@@ -60,6 +60,7 @@ pub struct Snapshot {
     pub hosts_synced: bool,
     pub busy_service: Option<ServiceId>,
     pub certificate: CertificateStatus,
+    pub environment_move: crate::workspace::MoveStatus,
 }
 
 #[derive(Debug, Serialize)]
@@ -84,11 +85,22 @@ struct MailpitConfig {
 }
 
 impl Engine {
+    pub async fn ensure_stopped(&self) -> Result<()> {
+        if !self.running.lock().await.is_empty() {
+            return Err(invalid("Stop all services before moving the environment"));
+        }
+        Ok(())
+    }
+
     pub fn open(root: PathBuf) -> Result<Self> {
         let storage = Storage::open(root)?;
-        let mut settings = storage.load()?;
-        user_path::recover(&storage, &settings)?;
-        user_path::upgrade_php_cli(&storage, &mut settings)?;
+        let mut engine = Self::from_storage(storage)?;
+        user_path::recover(&engine.storage, engine.settings.get_mut())?;
+        user_path::upgrade_php_cli(&engine.storage, engine.settings.get_mut())?;
+        Ok(engine)
+    }
+    pub(crate) fn from_storage(storage: Storage) -> Result<Self> {
+        let settings = storage.load()?;
         Ok(Self {
             storage,
             settings: RwLock::new(settings),
@@ -170,6 +182,7 @@ impl Engine {
             hosts_synced,
             busy_service,
             certificate: self.certificate_status(),
+            environment_move: crate::workspace::MoveStatus::default(),
         })
     }
     async fn commit(&self, settings: Settings) -> Result<()> {

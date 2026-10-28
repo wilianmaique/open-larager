@@ -86,6 +86,37 @@ export interface Snapshot {
   hostsSynced: boolean;
   busyService: ServiceId | null;
   certificate: { available: boolean; trusted: boolean; fingerprint: string | null };
+  environmentMove?: EnvironmentMove;
+}
+export interface EnvironmentFolder {
+  path: string;
+  token: string;
+}
+export interface EnvironmentMove {
+  cleanupSource: string | null;
+  cleanupError: string | null;
+  cleanupIssue?: FileFailure | null;
+}
+export interface FileFailure {
+  kind: 'fileOperation';
+  operation:
+    | 'inspect'
+    | 'read'
+    | 'create'
+    | 'write'
+    | 'copy'
+    | 'verify'
+    | 'remove'
+    | 'lock'
+    | 'move'
+    | 'permissions';
+  path: string;
+  relatedPath: string | null;
+  osCode: number | null;
+  message: string;
+  lockCheck: 'notRequested' | 'identified' | 'notIdentified' | 'unavailable';
+  diagnosticCode: number | null;
+  processes: { pid: number; name: string; executable: string | null; currentProcess: boolean }[];
 }
 export interface Progress {
   service: ServiceId;

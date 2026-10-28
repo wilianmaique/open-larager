@@ -484,6 +484,25 @@ pub fn transaction(
     }
 }
 
+/// Reconcile all opted-in commands after changing the environment root. The
+/// copied registrations still identify the old entries owned by this app.
+pub fn relocate(storage: &Storage, settings: &mut Settings) -> Result<()> {
+    let mut previous = settings.clone();
+    for service in previous.services.values_mut() {
+        if service.add_to_path {
+            service.add_to_path = false;
+        }
+    }
+    let mut next = settings.clone();
+    next.revision = next
+        .revision
+        .checked_add(1)
+        .ok_or_else(|| invalid("Settings revision overflow"))?;
+    transaction(storage, &previous, &mut next, Vec::new(), None)?;
+    *settings = next;
+    Ok(())
+}
+
 pub fn recover(storage: &Storage, settings: &Settings) -> Result<()> {
     let pending = storage.root.join("config/path/pending.json");
     if !pending.exists() {
@@ -910,6 +929,97 @@ mod tests {
         let records: Registrations =
             serde_json::from_str(r#"{"php":{"directory":"C:/PHP","owned":false}}"#).unwrap();
         assert!(!records[&ServiceId::Php].entries()[0].owned);
+    }
+
+    #[test]
+    fn relocation_replaces_only_owned_old_paths_and_recovers_registry_failures() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = Storage::open(temp.path().join("old")).unwrap();
+        let mut settings = installed(&source);
+        install_tool(&source, &mut settings, ServiceId::Nodejs, &["24.0.0"]);
+        let external_php = toolchain::layout(&source, &settings, ServiceId::Php)
+            .unwrap()
+            .directories[0]
+            .to_string_lossy()
+            .into_owned();
+        let original = format!("C:\\Other;;%SystemRoot%\\System32;{external_php}");
+        let fake = Fake::new(&original, false);
+        let previous = settings.clone();
+        settings
+            .services
+            .get_mut(&ServiceId::Php)
+            .unwrap()
+            .add_to_path = true;
+        settings
+            .services
+            .get_mut(&ServiceId::Nodejs)
+            .unwrap()
+            .add_to_path = true;
+        settings.revision += 1;
+        transact(&fake, &source, &previous, &mut settings, Vec::new(), None).unwrap();
+        let old_node = toolchain::layout(&source, &settings, ServiceId::Nodejs)
+            .unwrap()
+            .directories[0]
+            .to_string_lossy()
+            .into_owned();
+
+        let target = Storage::open(temp.path().join("new")).unwrap();
+        installed(&target);
+        let mut target_settings = settings.clone();
+        install_tool(
+            &target,
+            &mut target_settings,
+            ServiceId::Nodejs,
+            &["24.0.0"],
+        );
+        target.save(&target_settings).unwrap();
+        atomic_json(
+            &target.root.join("config/path/registrations.json"),
+            &registrations(&source).unwrap(),
+        )
+        .unwrap();
+        let mut before = target_settings.clone();
+        for service in before.services.values_mut() {
+            service.add_to_path = false;
+        }
+        target_settings.revision += 1;
+        let path_before = fake.read().unwrap();
+        assert!(
+            transact(
+                &fake,
+                &target,
+                &before,
+                &mut target_settings,
+                vec![(target.root.join("outside-config"), "invalid".into())],
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(fake.read().unwrap(), path_before);
+        transact(
+            &fake,
+            &target,
+            &before,
+            &mut target_settings,
+            Vec::new(),
+            None,
+        )
+        .unwrap();
+        let value = fake.read().unwrap().unwrap();
+        assert!(!value.expandable);
+        assert!(
+            value.text.ends_with(&original),
+            "externally owned entries must survive"
+        );
+        assert!(!contains(&value.text, &old_node));
+        for id in [ServiceId::Php, ServiceId::Nodejs] {
+            for directory in toolchain::layout(&target, &target_settings, id)
+                .unwrap()
+                .directories
+            {
+                assert!(contains(&value.text, &directory.to_string_lossy()));
+            }
+        }
     }
 
     #[test]

@@ -46,7 +46,7 @@ Ao instalar um pacote, **Adicionar a versão ativa ao meu PATH** é opcional e v
 
 O PATH acompanha a **Versão ativa**. Instalar outra versão não muda a ativa; ao selecionar e salvar outra versão instalada, o app substitui a entrada que gerencia. Ao remover a versão ativa, o PATH acompanha a versão restante indicada na confirmação; sem versões restantes, a entrada é removida. Entradas externas, inclusive uma entrada idêntica que já existia antes do registro, são preservadas. Se outra instalação tiver prioridade no PATH do Windows, o painel mostra o caminho encontrado.
 
-Feche e reabra o aplicativo de terminal, incluindo Windows Terminal ou VS Code, após registrar ou remover o PATH. O comando gerenciado `php` fica em `config/cli/php/php.cmd` e carrega o `php.ini` e as extensões da versão ativa, também nos processos PHP que inicia. Trocas de versão e alterações de extensões valem no próximo comando, inclusive em terminais já abertos com essa pasta no PATH. Registros antigos do PHP são atualizados ao abrir o app; após essa atualização, reabra o terminal uma vez. O registro não altera `PHPRC` globalmente. Antes de mover ou apagar um ambiente portátil, remova suas entradas pelo painel e registre novamente no novo local.
+Feche e reabra o aplicativo de terminal, incluindo Windows Terminal ou VS Code, após registrar ou remover o PATH. O comando gerenciado `php` fica em `config/cli/php/php.cmd` e carrega o `php.ini` e as extensões da versão ativa, também nos processos PHP que inicia. Trocas de versão e alterações de extensões valem no próximo comando, inclusive em terminais já abertos com essa pasta no PATH. Registros antigos do PHP são atualizados ao abrir o app; após essa atualização, reabra o terminal uma vez. O registro não altera `PHPRC` globalmente. Mover o ambiente por **Preferências → Alterar pasta** atualiza as entradas gerenciadas. Para movê-lo manualmente ou apagá-lo fora do app, remova essas entradas antes pelo painel.
 
 Node.js e Composer aparecem como ferramentas de terminal, com estado **Pronto** e seleção de versão. Não possuem processo de fundo, portas ou inicialização automática. O npm e o npx vêm da mesma distribuição do Node.js; o painel mostra a versão incluída. O catálogo oferece duas linhas LTS e a versão corrente do Node.js. Atualizações passam pelo catálogo; evite `npm install -g npm` ou `composer self-update` nas distribuições gerenciadas.
 
@@ -61,6 +61,14 @@ Pare o Nginx antes de alterar seus sites. Salvar regras exige Nginx instalado, v
 ## Organização dos arquivos
 
 Por padrão, o ambiente fica em `%LOCALAPPDATA%/dev.openlarager.desktop`. Crie um arquivo vazio chamado `larager.portable` ao lado do executável **antes de abri-lo** para usar `larager-data` nesse mesmo diretório.
+
+Em **Preferências → Alterar pasta**, escolha uma pasta local vazia e confirme a origem e o destino. Pare os serviços e feche terminais e ferramentas externas antes. O app copia e verifica os arquivos com SHA-256, ajusta os caminhos das configurações e dos projetos internos e atualiza seu PATH gerenciado. Bancos e credenciais são preservados, sem trocar versões. Os serviços continuam parados; reabra os terminais depois.
+
+A pasta antiga é limpa após a cópia verificada. Arquivos alterados, bloqueados ou adicionados por outras ferramentas permanecem protegidos; o painel mostra pendências e permite tentar novamente, inclusive após reabrir o app. Links e junctions são recusados. A escolha fica em `%APPDATA%/dev.openlarager.desktop/environment-location.json`, ou `larager-environment.json` ao lado do executável portátil. Se o destino estiver desconectado, o app exige reconectá-lo e não cria outro ambiente vazio. Uma interrupção abrupta durante a cópia, antes de ativar o destino, conserva a origem e pode deixar uma cópia parcial no destino.
+
+Falhas de arquivo mostram a operação, o caminho completo e o código do Windows. Nos erros de bloqueio, o app consulta os processos que usam o arquivo e exibe nome, PID e executável quando disponíveis, sem encerrá-los. A consulta pode não identificar processos protegidos, bloqueios temporários ou diretórios; essa limitação aparece no diagnóstico.
+
+O perfil da interface WebView2 fica separado em `%LOCALAPPDATA%/dev.openlarager.desktop.webview`, ou `larager-webview/` ao lado do executável portátil. Ao abrir no modo normal, um perfil antigo `EBWebView` na raiz padrão é movido antes de iniciar a interface; se já existir um perfil novo, o antigo fica arquivado como `legacy-<UUID>`, sem substituí-lo. Se outro processo impedir essa mudança, o perfil antigo é preservado. Assim, o próprio navegador da interface deixa de bloquear a movimentação do ambiente.
 
 ```text
 packages/<serviço>/<versão>/   Binários da distribuição

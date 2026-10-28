@@ -11,7 +11,8 @@ import { listen } from '@tauri-apps/api/event';
 import { createPortal } from 'react-dom';
 import { call, emptySnapshot, getSnapshot, native } from './api';
 import { detectLocale, translator, type Key } from './i18n';
-import type { Locale, Page, Progress, ServiceId, Snapshot } from './types';
+import type { FileFailure, Locale, Page, Progress, ServiceId, Snapshot } from './types';
+import { FileFailureDetails, isFileFailure } from './FileFailureDetails';
 
 interface Context {
   snapshot: Snapshot;
@@ -42,9 +43,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState<ServiceId | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
-  const [notification, setNotification] = useState<{ message: string; error: boolean } | null>(
-    null,
-  );
+  const [notification, setNotification] = useState<{
+    message: string;
+    error: boolean;
+    issue?: FileFailure;
+  } | null>(null);
   const [connected, setConnected] = useState(!native);
   const locale =
     snapshot.settings.language === 'auto'
@@ -58,7 +61,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setConnected(true);
     } catch (error) {
       setConnected(false);
-      setNotification({ message: String(error), error: true });
+      setNotification({
+        message: isFileFailure(error) ? error.message : String(error),
+        error: true,
+        issue: isFileFailure(error) ? error : undefined,
+      });
     }
   }, []);
   useEffect(() => {
@@ -115,8 +122,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       setNotification({
-        message: String(error).includes('DESKTOP_REQUIRED') ? t('desktopRequired') : String(error),
+        message: isFileFailure(error)
+          ? error.message
+          : String(error).includes('DESKTOP_REQUIRED')
+            ? t('desktopRequired')
+            : String(error),
         error: true,
+        issue: isFileFailure(error) ? error : undefined,
       });
       return false;
     } finally {
@@ -163,7 +175,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             <span className="notification-dot" />
             <div>
               {notification.error && <strong>{t('operationFailed')}</strong>}
-              <p>{notification.message}</p>
+              {notification.issue ? (
+                <FileFailureDetails issue={notification.issue} t={t} />
+              ) : (
+                <p>{notification.message}</p>
+              )}
             </div>
             <button aria-label={t('dismiss')} onClick={() => setNotification(null)}>
               ×

@@ -1,5 +1,48 @@
 import type { Locale } from './types';
 export const en = {
+  fileDiagnosticTitle: 'File operation details',
+  fileOperationLabel: 'Operation',
+  filePathLabel: 'File or folder',
+  fileRelatedPathLabel: 'Related path',
+  fileSystemCode: 'Windows error code',
+  fileProcessesLabel: 'Processes using the file',
+  fileUnknownProcess: 'Application',
+  fileProcessPid: 'PID {pid}',
+  fileCurrentProcess: 'This process is Open Larager itself.',
+  fileCloseProcessHelp: 'Close the listed application normally, then retry the operation.',
+  fileProcessNotIdentified:
+    'Windows did not identify a process. The lock may be temporary or belong to a protected process.',
+  fileProcessUnavailable:
+    'Windows could not query processes for this path. The affected file or folder is shown above.',
+  fileDiagnosticCode: 'Process query error: {code}',
+  fileOpInspect: 'Inspect file or folder',
+  fileOpRead: 'Read file',
+  fileOpCreate: 'Create file or folder',
+  fileOpWrite: 'Save file',
+  fileOpCopy: 'Copy file',
+  fileOpVerify: 'Verify copied data',
+  fileOpRemove: 'Clean old file or folder',
+  fileOpLock: 'Acquire environment lock',
+  fileOpMove: 'Move file or folder',
+  fileOpPermissions: 'Update permissions',
+  changeEnvironment: 'Change folder',
+  environmentMoveHelp:
+    'Choose an empty folder. The current location changes only after confirmation.',
+  environmentStopFirst:
+    'Stop all services before changing the environment folder. Close terminals and external tools using it.',
+  environmentMoveTitle: 'Move environment',
+  environmentMoveConfirm:
+    'Packages, settings, databases, logs, projects and credentials will move together. The old folder is cleaned only after the copy is verified.',
+  environmentCurrentFolder: 'Current folder',
+  environmentNewFolder: 'New folder',
+  environmentMoveCaution:
+    'Keep external tools and terminals closed during the move. Services stay stopped. Reopen terminals afterwards to use the updated PATH.',
+  environmentMoveAction: 'Move and clean old folder',
+  environmentMoving: 'Moving environment…',
+  environmentMoved: 'Environment moved. Check below for any pending cleanup.',
+  environmentCleanupPending:
+    'The new folder is active. Cleanup of the old folder or updating PATH is pending. Changed files are preserved. Close tools using these folders and retry.',
+  environmentRetryCleanup: 'Retry pending steps',
   validating: 'Validating PHP extensions',
   reloading: 'Reloading PHP',
   restoring: 'Restoring the previous PHP configuration',
@@ -274,7 +317,7 @@ export const en = {
   pathSecrets: 'Windows protected credentials',
   portableTitle: 'Take your workspace with you',
   portableDescription:
-    'Put an empty larager.portable file beside the app before opening it. A larager-data folder is created next to the executable. Database passwords remain tied to your Windows account.',
+    'Put an empty larager.portable file beside the app before opening it. A larager-data folder is created next to the executable. A folder selected above takes priority. Database passwords remain tied to your Windows account.',
   about: 'Built to stay out of your way.',
   aboutDescription: 'Tauri · Rust · React. No server comes preinstalled. No telemetry.',
   desktopRequired:
@@ -326,6 +369,48 @@ export type Key = keyof typeof en;
 type Dictionary = Record<Key, string>;
 
 const pt: Dictionary = {
+  fileDiagnosticTitle: 'Detalhes da operação de arquivo',
+  fileOperationLabel: 'Operação',
+  filePathLabel: 'Arquivo ou pasta',
+  fileRelatedPathLabel: 'Caminho relacionado',
+  fileSystemCode: 'Código do Windows',
+  fileProcessesLabel: 'Processos usando o arquivo',
+  fileUnknownProcess: 'Aplicativo',
+  fileProcessPid: 'PID {pid}',
+  fileCurrentProcess: 'Este processo é o próprio Open Larager.',
+  fileCloseProcessHelp: 'Feche normalmente o aplicativo indicado e tente a operação novamente.',
+  fileProcessNotIdentified:
+    'O Windows não identificou um processo. O bloqueio pode ser temporário ou pertencer a um processo protegido.',
+  fileProcessUnavailable:
+    'O Windows não conseguiu consultar os processos deste caminho. O arquivo ou a pasta afetada aparece acima.',
+  fileDiagnosticCode: 'Erro na consulta de processos: {code}',
+  fileOpInspect: 'Verificar arquivo ou pasta',
+  fileOpRead: 'Ler arquivo',
+  fileOpCreate: 'Criar arquivo ou pasta',
+  fileOpWrite: 'Salvar arquivo',
+  fileOpCopy: 'Copiar arquivo',
+  fileOpVerify: 'Conferir os dados copiados',
+  fileOpRemove: 'Limpar arquivo ou pasta antiga',
+  fileOpLock: 'Obter exclusividade sobre o ambiente',
+  fileOpMove: 'Mover arquivo ou pasta',
+  fileOpPermissions: 'Atualizar permissões',
+  changeEnvironment: 'Alterar pasta',
+  environmentMoveHelp: 'Escolha uma pasta vazia. O local atual só muda após a confirmação.',
+  environmentStopFirst:
+    'Pare todos os serviços antes de alterar a pasta do ambiente. Feche os terminais e as ferramentas externas que a utilizam.',
+  environmentMoveTitle: 'Mover ambiente',
+  environmentMoveConfirm:
+    'Pacotes, configurações, bancos, logs, projetos e credenciais serão movidos juntos. A pasta antiga só será limpa após a verificação da cópia.',
+  environmentCurrentFolder: 'Pasta atual',
+  environmentNewFolder: 'Nova pasta',
+  environmentMoveCaution:
+    'Mantenha ferramentas externas e terminais fechados durante a mudança. Os serviços continuarão parados. Reabra os terminais depois para usar o PATH atualizado.',
+  environmentMoveAction: 'Mover e limpar pasta antiga',
+  environmentMoving: 'Movendo ambiente…',
+  environmentMoved: 'Ambiente movido. Confira abaixo se há alguma limpeza pendente.',
+  environmentCleanupPending:
+    'A nova pasta está ativa. A limpeza da pasta antiga ou a atualização do PATH está pendente. Arquivos alterados são preservados. Feche as ferramentas que usam essas pastas e tente novamente.',
+  environmentRetryCleanup: 'Tentar concluir pendências',
   validating: 'Validando extensões do PHP',
   reloading: 'Recarregando PHP',
   restoring: 'Restaurando a configuração anterior do PHP',
@@ -597,7 +682,7 @@ const pt: Dictionary = {
   pathSecrets: 'Credenciais protegidas pelo Windows',
   portableTitle: 'Leve seu ambiente com você',
   portableDescription:
-    'Crie um arquivo vazio larager.portable ao lado do app antes de abri-lo. A pasta larager-data será criada ao lado do executável. As senhas dos bancos continuam vinculadas à sua conta do Windows.',
+    'Crie um arquivo vazio larager.portable ao lado do app antes de abri-lo. A pasta larager-data será criada ao lado do executável. Uma pasta escolhida acima tem prioridade. As senhas dos bancos continuam vinculadas à sua conta do Windows.',
   about: 'Feito para deixar você criar.',
   aboutDescription: 'Tauri · Rust · React. Nenhum servidor pré-instalado. Sem telemetria.',
   desktopRequired:
@@ -647,6 +732,50 @@ const pt: Dictionary = {
 };
 
 const es: Dictionary = {
+  fileDiagnosticTitle: 'Detalles de la operación de archivo',
+  fileOperationLabel: 'Operación',
+  filePathLabel: 'Archivo o carpeta',
+  fileRelatedPathLabel: 'Ruta relacionada',
+  fileSystemCode: 'Código de Windows',
+  fileProcessesLabel: 'Procesos que usan el archivo',
+  fileUnknownProcess: 'Aplicación',
+  fileProcessPid: 'PID {pid}',
+  fileCurrentProcess: 'Este proceso es el propio Open Larager.',
+  fileCloseProcessHelp:
+    'Cierra normalmente la aplicación indicada y vuelve a intentar la operación.',
+  fileProcessNotIdentified:
+    'Windows no identificó ningún proceso. El bloqueo puede ser temporal o pertenecer a un proceso protegido.',
+  fileProcessUnavailable:
+    'Windows no pudo consultar los procesos de esta ruta. El archivo o la carpeta afectada se muestra arriba.',
+  fileDiagnosticCode: 'Error al consultar procesos: {code}',
+  fileOpInspect: 'Inspeccionar archivo o carpeta',
+  fileOpRead: 'Leer archivo',
+  fileOpCreate: 'Crear archivo o carpeta',
+  fileOpWrite: 'Guardar archivo',
+  fileOpCopy: 'Copiar archivo',
+  fileOpVerify: 'Verificar los datos copiados',
+  fileOpRemove: 'Limpiar archivo o carpeta anterior',
+  fileOpLock: 'Obtener acceso exclusivo al entorno',
+  fileOpMove: 'Mover archivo o carpeta',
+  fileOpPermissions: 'Actualizar permisos',
+  changeEnvironment: 'Cambiar carpeta',
+  environmentMoveHelp:
+    'Elige una carpeta vacía. La ubicación actual solo cambia tras la confirmación.',
+  environmentStopFirst:
+    'Detén todos los servicios antes de cambiar la carpeta. Cierra los terminales y las herramientas externas que la usen.',
+  environmentMoveTitle: 'Mover entorno',
+  environmentMoveConfirm:
+    'Los paquetes, ajustes, bases de datos, registros, proyectos y credenciales se moverán juntos. La carpeta anterior solo se limpiará tras verificar la copia.',
+  environmentCurrentFolder: 'Carpeta actual',
+  environmentNewFolder: 'Nueva carpeta',
+  environmentMoveCaution:
+    'Mantén cerrados los terminales y las herramientas externas durante el traslado. Los servicios seguirán detenidos. Abre nuevos terminales después para usar el PATH actualizado.',
+  environmentMoveAction: 'Mover y limpiar carpeta anterior',
+  environmentMoving: 'Moviendo entorno…',
+  environmentMoved: 'Entorno movido. Revisa abajo si quedan tareas de limpieza pendientes.',
+  environmentCleanupPending:
+    'La nueva carpeta está activa. Queda pendiente limpiar la anterior o actualizar el PATH. Los archivos modificados se conservan. Cierra las herramientas que usen estas carpetas y reintenta.',
+  environmentRetryCleanup: 'Reintentar tareas pendientes',
   validating: 'Validando extensiones de PHP',
   reloading: 'Recargando PHP',
   restoring: 'Restaurando la configuración anterior de PHP',
@@ -920,7 +1049,7 @@ const es: Dictionary = {
   pathSecrets: 'Credenciales protegidas por Windows',
   portableTitle: 'Lleva tu entorno contigo',
   portableDescription:
-    'Crea un archivo vacío larager.portable junto a la app antes de abrirla. Se creará una carpeta larager-data junto al ejecutable. Las contraseñas siguen vinculadas a tu cuenta de Windows.',
+    'Crea un archivo vacío larager.portable junto a la app antes de abrirla. Se creará una carpeta larager-data junto al ejecutable. La carpeta elegida arriba tiene prioridad. Las contraseñas siguen vinculadas a tu cuenta de Windows.',
   about: 'Hecho para que sigas creando.',
   aboutDescription: 'Tauri · Rust · React. Sin servidores preinstalados. Sin telemetría.',
   desktopRequired:
@@ -970,6 +1099,45 @@ const es: Dictionary = {
 };
 
 const zh: Dictionary = {
+  fileDiagnosticTitle: '文件操作详情',
+  fileOperationLabel: '操作',
+  filePathLabel: '文件或文件夹',
+  fileRelatedPathLabel: '相关路径',
+  fileSystemCode: 'Windows 错误代码',
+  fileProcessesLabel: '正在使用文件的进程',
+  fileUnknownProcess: '应用程序',
+  fileProcessPid: 'PID {pid}',
+  fileCurrentProcess: '此进程是 Open Larager 本身。',
+  fileCloseProcessHelp: '请正常关闭列出的应用程序，然后重试操作。',
+  fileProcessNotIdentified: 'Windows 未识别出进程。锁定可能是临时的，或来自受保护的进程。',
+  fileProcessUnavailable: 'Windows 无法查询此路径的进程。受影响的文件或文件夹显示在上方。',
+  fileDiagnosticCode: '进程查询错误：{code}',
+  fileOpInspect: '检查文件或文件夹',
+  fileOpRead: '读取文件',
+  fileOpCreate: '创建文件或文件夹',
+  fileOpWrite: '保存文件',
+  fileOpCopy: '复制文件',
+  fileOpVerify: '验证已复制的数据',
+  fileOpRemove: '清理原文件或文件夹',
+  fileOpLock: '获取环境独占锁',
+  fileOpMove: '移动文件或文件夹',
+  fileOpPermissions: '更新权限',
+  changeEnvironment: '更改文件夹',
+  environmentMoveHelp: '选择一个空文件夹。确认后才会更改当前位置。',
+  environmentStopFirst: '更改环境文件夹前请停止所有服务，并关闭使用它的终端和外部工具。',
+  environmentMoveTitle: '移动环境',
+  environmentMoveConfirm:
+    '软件包、设置、数据库、日志、项目和凭据将一同移动。验证副本后才会清理原文件夹。',
+  environmentCurrentFolder: '当前文件夹',
+  environmentNewFolder: '新文件夹',
+  environmentMoveCaution:
+    '移动期间请关闭终端和外部工具。服务将保持停止状态。之后重新打开终端以使用更新后的 PATH。',
+  environmentMoveAction: '移动并清理原文件夹',
+  environmentMoving: '正在移动环境…',
+  environmentMoved: '环境已移动。请在下方查看待完成的清理任务。',
+  environmentCleanupPending:
+    '新文件夹已启用。原文件夹清理或 PATH 更新尚未完成。已更改的文件会保留。请关闭使用这些文件夹的工具后重试。',
+  environmentRetryCleanup: '重试待完成的步骤',
   validating: '正在验证 PHP 扩展',
   reloading: '正在重新加载 PHP',
   restoring: '正在恢复之前的 PHP 配置',
@@ -1221,7 +1389,7 @@ const zh: Dictionary = {
   pathSecrets: 'Windows 保护的凭据',
   portableTitle: '随身携带工作空间',
   portableDescription:
-    '打开应用前，在可执行文件旁创建空的 larager.portable 文件。程序会在旁边创建 larager-data 文件夹。数据库密码仍与当前 Windows 账户绑定。',
+    '打开应用前，在可执行文件旁创建空的 larager.portable 文件。程序会在旁边创建 larager-data 文件夹。上方选择的文件夹优先使用。数据库密码仍与当前 Windows 账户绑定。',
   about: '专注创造，减少干扰。',
   aboutDescription: 'Tauri · Rust · React。无预装服务器，无遥测。',
   desktopRequired: '请打开 Windows 应用来管理服务。浏览器页面仅用于预览界面。',
@@ -1270,6 +1438,48 @@ const zh: Dictionary = {
 };
 
 const hi: Dictionary = {
+  fileDiagnosticTitle: 'फ़ाइल संचालन का विवरण',
+  fileOperationLabel: 'संचालन',
+  filePathLabel: 'फ़ाइल या फ़ोल्डर',
+  fileRelatedPathLabel: 'संबंधित पथ',
+  fileSystemCode: 'Windows त्रुटि कोड',
+  fileProcessesLabel: 'फ़ाइल का उपयोग करने वाली प्रक्रियाएँ',
+  fileUnknownProcess: 'ऐप्लिकेशन',
+  fileProcessPid: 'PID {pid}',
+  fileCurrentProcess: 'यह प्रक्रिया स्वयं Open Larager है।',
+  fileCloseProcessHelp: 'दिखाए गए ऐप्लिकेशन को सामान्य रूप से बंद करें, फिर संचालन दोबारा आज़माएँ।',
+  fileProcessNotIdentified:
+    'Windows किसी प्रक्रिया की पहचान नहीं कर सका। लॉक अस्थायी हो सकता है या किसी सुरक्षित प्रक्रिया का हो सकता है।',
+  fileProcessUnavailable:
+    'Windows इस पथ की प्रक्रियाएँ नहीं पूछ सका। प्रभावित फ़ाइल या फ़ोल्डर ऊपर दिखाया गया है।',
+  fileDiagnosticCode: 'प्रक्रिया जाँच त्रुटि: {code}',
+  fileOpInspect: 'फ़ाइल या फ़ोल्डर जाँचें',
+  fileOpRead: 'फ़ाइल पढ़ें',
+  fileOpCreate: 'फ़ाइल या फ़ोल्डर बनाएँ',
+  fileOpWrite: 'फ़ाइल सहेजें',
+  fileOpCopy: 'फ़ाइल कॉपी करें',
+  fileOpVerify: 'कॉपी किए गए डेटा की पुष्टि करें',
+  fileOpRemove: 'पुरानी फ़ाइल या फ़ोल्डर साफ़ करें',
+  fileOpLock: 'वातावरण पर विशेष लॉक लें',
+  fileOpMove: 'फ़ाइल या फ़ोल्डर स्थानांतरित करें',
+  fileOpPermissions: 'अनुमतियाँ अपडेट करें',
+  changeEnvironment: 'फ़ोल्डर बदलें',
+  environmentMoveHelp: 'खाली फ़ोल्डर चुनें। पुष्टि के बाद ही मौजूदा स्थान बदलेगा।',
+  environmentStopFirst:
+    'वातावरण का फ़ोल्डर बदलने से पहले सभी सेवाएँ रोकें। इसका उपयोग करने वाले टर्मिनल और बाहरी टूल बंद करें।',
+  environmentMoveTitle: 'वातावरण स्थानांतरित करें',
+  environmentMoveConfirm:
+    'पैकेज, सेटिंग, डेटाबेस, लॉग, प्रोजेक्ट और क्रेडेंशियल साथ स्थानांतरित होंगे। कॉपी की जाँच के बाद ही पुराना फ़ोल्डर साफ़ होगा।',
+  environmentCurrentFolder: 'मौजूदा फ़ोल्डर',
+  environmentNewFolder: 'नया फ़ोल्डर',
+  environmentMoveCaution:
+    'स्थानांतरण के दौरान टर्मिनल और बाहरी टूल बंद रखें। सेवाएँ रुकी रहेंगी। नए PATH के लिए बाद में टर्मिनल फिर खोलें।',
+  environmentMoveAction: 'स्थानांतरित करके पुराना फ़ोल्डर साफ़ करें',
+  environmentMoving: 'वातावरण स्थानांतरित हो रहा है…',
+  environmentMoved: 'वातावरण स्थानांतरित हो गया। नीचे लंबित सफ़ाई देखें।',
+  environmentCleanupPending:
+    'नया फ़ोल्डर सक्रिय है। पुराने फ़ोल्डर की सफ़ाई या PATH अपडेट लंबित है। बदली गई फ़ाइलें सुरक्षित हैं। इन फ़ोल्डरों का उपयोग करने वाले टूल बंद करके फिर प्रयास करें।',
+  environmentRetryCleanup: 'लंबित चरण फिर आज़माएँ',
   validating: 'PHP एक्सटेंशन की जाँच हो रही है',
   reloading: 'PHP रीलोड हो रहा है',
   restoring: 'पिछला PHP कॉन्फ़िगरेशन बहाल हो रहा है',
@@ -1538,7 +1748,7 @@ const hi: Dictionary = {
   pathSecrets: 'Windows से सुरक्षित क्रेडेंशियल',
   portableTitle: 'कार्यस्थान साथ ले जाएँ',
   portableDescription:
-    'ऐप खोलने से पहले उसके पास खाली larager.portable फ़ाइल बनाएँ। executable के पास larager-data फ़ोल्डर बनेगा। डेटाबेस के पासवर्ड आपके Windows खाते से जुड़े रहते हैं।',
+    'ऐप खोलने से पहले उसके पास खाली larager.portable फ़ाइल बनाएँ। executable के पास larager-data फ़ोल्डर बनेगा। ऊपर चुना गया फ़ोल्डर प्राथमिकता लेता है। डेटाबेस के पासवर्ड आपके Windows खाते से जुड़े रहते हैं।',
   about: 'ताकि आप निर्माण पर ध्यान दें।',
   aboutDescription: 'Tauri · Rust · React। कोई सर्वर पहले से इंस्टॉल नहीं। कोई टेलीमेट्री नहीं।',
   desktopRequired:

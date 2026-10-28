@@ -1,5 +1,14 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { Settings, Snapshot, SiteConfig, PathStatus, ServiceId, PhpExtensions } from './types';
+import type {
+  Settings,
+  Snapshot,
+  SiteConfig,
+  PathStatus,
+  ServiceId,
+  PhpExtensions,
+  EnvironmentFolder,
+  EnvironmentMove,
+} from './types';
 import { serviceIds } from './types';
 import { defaultPorts } from './serviceRegistry';
 import catalog from '../src-tauri/catalog/packages.json';
@@ -66,4 +75,10 @@ export const phpExtensionsApi = {
   set: (version: string, extension: string, enabled: boolean) =>
     call<PhpExtensions>('set_php_extension', { version, extension, enabled }),
   cancel: () => call('cancel_install', { id: 'php' }),
+};
+
+export const environmentApi = {
+  choose: () => call<EnvironmentFolder | null>('choose_environment_folder'),
+  move: (token: string) => call<EnvironmentMove>('move_environment', { token }),
+  cleanup: () => call<EnvironmentMove>('cleanup_environment'),
 };
