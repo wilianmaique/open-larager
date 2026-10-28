@@ -13,7 +13,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build --no-bundle",
+    "desktop:build": "tauri build --no-bundle -- --locked",
     "desktop:bundle": "tauri build --bundles nsis -- --locked",
     "release:version": "node scripts/release-version.mjs set",
     "release:check": "node scripts/release-version.mjs check",
