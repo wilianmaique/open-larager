@@ -2919,3 +2919,102 @@ progress::-webkit-progress-value {
     scroll-behavior: auto !important;
   }
 }
+
+.php-extensions .section-mini-title > .icon-button {
+  margin-left: auto;
+}
+.extension-runtime,
+.extension-toolbar,
+.extension-row,
+.extension-action,
+.extension-details > div,
+.extension-loaded,
+.extension-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.extension-runtime {
+  flex-wrap: wrap;
+  margin: 16px 0 10px;
+}
+.extension-runtime code {
+  font-size: 11px;
+}
+.extension-toolbar {
+  margin: 20px 0 12px;
+  flex-wrap: wrap;
+}
+.extension-search {
+  flex: 1;
+  min-width: 150px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+}
+.extension-search input[type='search'] {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: inherit;
+  padding: 10px 0;
+  outline: none;
+}
+.extension-search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.extension-toolbar > .select-control {
+  min-width: 150px;
+}
+.extension-row {
+  justify-content: space-between;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border);
+}
+.extension-details {
+  min-width: 0;
+}
+.extension-details code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.extension-details > span,
+.extension-details small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.extension-details > small {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.extension-details > span {
+  display: block;
+  margin-top: 5px;
+}
+.extension-action {
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.extension-loaded {
+  color: var(--muted);
+  font-size: 10px;
+  gap: 4px;
+}
+.php-extensions pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.extension-working {
+  animation: spin 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .extension-working {
+    animation: none;
+  }
+}

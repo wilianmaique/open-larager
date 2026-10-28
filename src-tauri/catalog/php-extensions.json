@@ -1,0 +1,381 @@
+{
+  "extensions": [
+    {
+      "id": "bcmath",
+      "module": "bcmath",
+      "source": "bundled"
+    },
+    {
+      "id": "bz2",
+      "module": "bz2",
+      "source": "bundled"
+    },
+    {
+      "id": "curl",
+      "module": "curl",
+      "source": "bundled"
+    },
+    {
+      "id": "dba",
+      "module": "dba",
+      "source": "bundled"
+    },
+    {
+      "id": "exif",
+      "module": "exif",
+      "source": "bundled",
+      "dependencies": ["mbstring"]
+    },
+    {
+      "id": "ffi",
+      "module": "FFI",
+      "source": "bundled"
+    },
+    {
+      "id": "fileinfo",
+      "module": "fileinfo",
+      "source": "bundled"
+    },
+    {
+      "id": "ftp",
+      "module": "ftp",
+      "source": "bundled"
+    },
+    {
+      "id": "gd",
+      "module": "gd",
+      "source": "bundled"
+    },
+    {
+      "id": "gettext",
+      "module": "gettext",
+      "source": "bundled"
+    },
+    {
+      "id": "gmp",
+      "module": "gmp",
+      "source": "bundled"
+    },
+    {
+      "id": "intl",
+      "module": "intl",
+      "source": "bundled"
+    },
+    {
+      "id": "ldap",
+      "module": "ldap",
+      "source": "bundled"
+    },
+    {
+      "id": "mbstring",
+      "module": "mbstring",
+      "source": "bundled"
+    },
+    {
+      "id": "mysqli",
+      "module": "mysqli",
+      "source": "bundled"
+    },
+    {
+      "id": "odbc",
+      "module": "odbc",
+      "source": "bundled"
+    },
+    {
+      "id": "opcache",
+      "module": "Zend OPcache",
+      "source": "bundled",
+      "zend": true
+    },
+    {
+      "id": "openssl",
+      "module": "openssl",
+      "source": "bundled"
+    },
+    {
+      "id": "pdo_mysql",
+      "module": "pdo_mysql",
+      "source": "bundled"
+    },
+    {
+      "id": "pdo_odbc",
+      "module": "PDO_ODBC",
+      "source": "bundled"
+    },
+    {
+      "id": "pdo_pgsql",
+      "module": "pdo_pgsql",
+      "source": "bundled"
+    },
+    {
+      "id": "pdo_sqlite",
+      "module": "pdo_sqlite",
+      "source": "bundled"
+    },
+    {
+      "id": "pgsql",
+      "module": "pgsql",
+      "source": "bundled"
+    },
+    {
+      "id": "shmop",
+      "module": "shmop",
+      "source": "bundled"
+    },
+    {
+      "id": "snmp",
+      "module": "snmp",
+      "source": "bundled"
+    },
+    {
+      "id": "soap",
+      "module": "soap",
+      "source": "bundled"
+    },
+    {
+      "id": "sockets",
+      "module": "sockets",
+      "source": "bundled"
+    },
+    {
+      "id": "sodium",
+      "module": "sodium",
+      "source": "bundled"
+    },
+    {
+      "id": "sqlite3",
+      "module": "sqlite3",
+      "source": "bundled"
+    },
+    {
+      "id": "tidy",
+      "module": "tidy",
+      "source": "bundled"
+    },
+    {
+      "id": "xsl",
+      "module": "xsl",
+      "source": "bundled"
+    },
+    {
+      "id": "zip",
+      "module": "zip",
+      "source": "bundled"
+    },
+    {
+      "id": "apcu",
+      "module": "apcu",
+      "source": "pecl"
+    },
+    {
+      "id": "igbinary",
+      "module": "igbinary",
+      "source": "pecl"
+    },
+    {
+      "id": "redis",
+      "module": "redis",
+      "source": "pecl"
+    },
+    {
+      "id": "xdebug",
+      "module": "xdebug",
+      "source": "pecl",
+      "zend": true
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "apcu",
+      "version": "5.1.28",
+      "phpVersion": "8.5",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/apcu/5.1.28/php_apcu-5.1.28-8.5-nts-vs17-x64.zip",
+      "sha256": "8efdd54ba08c4af2075d207b2ba3aad52899214de261e4b1d5a41ba96689b622",
+      "size": 238068,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "apcu",
+      "version": "5.1.28",
+      "phpVersion": "8.4",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/apcu/5.1.28/php_apcu-5.1.28-8.4-nts-vs17-x64.zip",
+      "sha256": "28f522ce9b65d8696dfcc999bf0ad9811d97d6ef9e26e35b117c3f8e9769e951",
+      "size": 233673,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "apcu",
+      "version": "5.1.28",
+      "phpVersion": "8.3",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/apcu/5.1.28/php_apcu-5.1.28-8.3-nts-vs16-x64.zip",
+      "sha256": "1ff653f7a7375f3ebd04d33f5da611aad602c80728b00c1a52143bfec815fa17",
+      "size": 173713,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "apcu",
+      "version": "5.1.28",
+      "phpVersion": "8.2",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/apcu/5.1.28/php_apcu-5.1.28-8.2-nts-vs16-x64.zip",
+      "sha256": "f986389ec644894ac2c209420a2cd4eba04c340650e3461dfacecf93b846d35e",
+      "size": 172995,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "igbinary",
+      "version": "3.2.16",
+      "phpVersion": "8.5",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/igbinary/3.2.16/php_igbinary-3.2.16-8.5-nts-vs17-x64.zip",
+      "sha256": "093c9816d93c0c537e91d1e67718250f78da79790cdfa05eed14979ae9b010ec",
+      "size": 208845,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "igbinary",
+      "version": "3.2.16",
+      "phpVersion": "8.4",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/igbinary/3.2.16/php_igbinary-3.2.16-8.4-nts-vs17-x64.zip",
+      "sha256": "380c2d8032fb8c55e01326ebdb66b8855ff8630533811394c4fe2dd8252b81cf",
+      "size": 201129,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "igbinary",
+      "version": "3.2.16",
+      "phpVersion": "8.3",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/igbinary/3.2.16/php_igbinary-3.2.16-8.3-nts-vs16-x64.zip",
+      "sha256": "9aeedd333a6d3656789f33f12440bca77dd70502446e4479ef7e3027d13c3934",
+      "size": 164566,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "igbinary",
+      "version": "3.2.16",
+      "phpVersion": "8.2",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/igbinary/3.2.16/php_igbinary-3.2.16-8.2-nts-vs16-x64.zip",
+      "sha256": "db52c8314f0f5aec7d4083e6b37f5bfd0c57046197420977778c7481a4444057",
+      "size": 164214,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "redis",
+      "version": "6.3.0",
+      "phpVersion": "8.5",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/redis/6.3.0/php_redis-6.3.0-8.5-nts-vs17-x64.zip",
+      "sha256": "481d6d1af45060ab41af6abe250faa270276fc47a493badc2e178024cdf6e255",
+      "size": 861902,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "redis",
+      "version": "6.3.0",
+      "phpVersion": "8.4",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/redis/6.3.0/php_redis-6.3.0-8.4-nts-vs17-x64.zip",
+      "sha256": "6db881ed172703962002d7e02dacc8ddb3f789904c648fee3e6ceec1319679cd",
+      "size": 859841,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "redis",
+      "version": "6.3.0",
+      "phpVersion": "8.3",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/redis/6.3.0/php_redis-6.3.0-8.3-nts-vs16-x64.zip",
+      "sha256": "519fc1bdf54323d3ab08443c66f77e783d314c13b532e27cc8b390def7f81b60",
+      "size": 764694,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "redis",
+      "version": "6.3.0",
+      "phpVersion": "8.2",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/redis/6.3.0/php_redis-6.3.0-8.2-nts-vs16-x64.zip",
+      "sha256": "b2b730b99b97352212b338c01f7dde577857e31c5f8e1d011ec2871e63f8f87c",
+      "size": 763251,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "xdebug",
+      "version": "3.5.3",
+      "phpVersion": "8.5",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/xdebug/3.5.3/php_xdebug-3.5.3-8.5-nts-vs17-x64.zip",
+      "sha256": "1085ff005c513757f428d3ab792a2d5ce007e382ffef9ef422de347d3bed830d",
+      "size": 841946,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "xdebug",
+      "version": "3.5.3",
+      "phpVersion": "8.4",
+      "threadSafe": false,
+      "compiler": "vs17",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/xdebug/3.5.3/php_xdebug-3.5.3-8.4-nts-vs17-x64.zip",
+      "sha256": "0d8bfc5524343f89caf66f400e63e8bd83fc84dec885b053ec8aabe8945418f4",
+      "size": 847584,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "xdebug",
+      "version": "3.5.3",
+      "phpVersion": "8.3",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/xdebug/3.5.3/php_xdebug-3.5.3-8.3-nts-vs16-x64.zip",
+      "sha256": "9883a4361e2f7208ea15b6dbc66f346f2bb5b9a168384f37c5433833c7420ccd",
+      "size": 621944,
+      "verification": "https-pinned"
+    },
+    {
+      "id": "xdebug",
+      "version": "3.5.3",
+      "phpVersion": "8.2",
+      "threadSafe": false,
+      "compiler": "vs16",
+      "architecture": "x64",
+      "url": "https://downloads.php.net/~windows/pecl/releases/xdebug/3.5.3/php_xdebug-3.5.3-8.2-nts-vs16-x64.zip",
+      "sha256": "78b18873c20e6ac38bbda1b17e272db4ba0c47b1eb99a0179440bd0ea82d8f18",
+      "size": 624513,
+      "verification": "https-pinned"
+    }
+  ]
+}

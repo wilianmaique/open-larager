@@ -24,6 +24,11 @@ import { useApp } from './state';
 import type { Site } from './types';
 import { SiteConfigDialog } from './SiteConfigDialog';
 
+function displayProjectPath(path: string): string {
+  // Keep the original path in state and IPC; only simplify drive and UNC paths for display.
+  return path.replace(/^\\\\\?\\UNC\\/i, '\\\\').replace(/^\\\\\?\\(?=[a-z]:\\)/i, '');
+}
+
 export function Domains() {
   const { t, snapshot, run, busy, setSelected } = useApp();
   const [editing, setEditing] = useState<Site | 'new' | null>(null);
@@ -168,7 +173,9 @@ export function Domains() {
                 <div className="domain-name">
                   <strong>{site.hostname}</strong>
                   <span>
-                    {site.mode === 'proxy' ? `127.0.0.1:${site.upstreamPort}` : site.root}
+                    {site.mode === 'proxy'
+                      ? `127.0.0.1:${site.upstreamPort}`
+                      : displayProjectPath(site.root)}
                   </span>
                 </div>
                 <span className="tag">
@@ -407,7 +414,7 @@ function SiteForm({ site, onClose }: { site?: Site; onClose: () => void }) {
                 <input
                   id="site-root"
                   required
-                  value={form.root}
+                  value={displayProjectPath(form.root)}
                   onChange={(e) => update('root', e.target.value)}
                   placeholder="C:\Projects\my-site\public"
                 />

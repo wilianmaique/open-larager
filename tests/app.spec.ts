@@ -20,6 +20,8 @@ async function mockNative(page: Page) {
   await page.addInitScript(
     ({ ids, ports, definitions }) => {
       let rules: string | null = null;
+      const extensionStates = new Map<string, Set<string>>();
+      const extensionCalls: Record<string, unknown>[] = [];
       const defaults =
         'index index.php index.html;\nclient_max_body_size 64m;\nlocation / { try_files $uri $uri/ /index.php?$query_string; }\n';
       const siteConfig = (content: string | null) => ({
@@ -62,6 +64,8 @@ async function mockNative(page: Page) {
         })),
       };
       Object.assign(window, {
+        __extensionCalls: extensionCalls,
+        __failExtensionInstall: false,
         isTauri: true,
         __TAURI_EVENT_PLUGIN_INTERNALS__: { unregisterListener: () => {} },
         __TAURI_INTERNALS__: {
@@ -85,6 +89,72 @@ async function mockNative(page: Page) {
               return structuredClone(state);
             }
             if (command.startsWith('plugin:event|')) return 1;
+            if (command === 'get_php_extensions' || command === 'set_php_extension') {
+              const version = state.settings.services.php.activeVersion;
+              const enabled = extensionStates.get(version ?? '') ?? new Set(['json']);
+              extensionStates.set(version ?? '', enabled);
+              if (command === 'set_php_extension') {
+                extensionCalls.push(structuredClone(args));
+                if (Reflect.get(window, '__failExtensionInstall'))
+                  throw new Error(
+                    'PHP extension validation failed. Previous configuration preserved.',
+                  );
+                if (args.version !== version) throw new Error('The active PHP version changed.');
+                if (args.enabled) enabled.add(String(args.extension));
+                else enabled.delete(String(args.extension));
+              }
+              return {
+                phpVersion: version,
+                runtime: {
+                  version,
+                  branch: version?.split('.').slice(0, 2).join('.'),
+                  architecture: 'x64',
+                  threadSafe: false,
+                  compiler: 'vs17',
+                  build: 'API20250925,NTS,VS17',
+                  debug: false,
+                },
+                diagnostics: '',
+                extensions: [
+                  {
+                    id: 'intl',
+                    source: 'bundled',
+                    loaded: enabled.has('intl'),
+                    builtin: false,
+                    compatible: true,
+                    version: null,
+                    dependencies: [],
+                  },
+                  {
+                    id: 'redis',
+                    source: 'pecl',
+                    loaded: enabled.has('redis'),
+                    builtin: false,
+                    compatible: true,
+                    version: '6.3.0',
+                    dependencies: [],
+                  },
+                  {
+                    id: 'apcu',
+                    source: 'pecl',
+                    loaded: false,
+                    builtin: false,
+                    compatible: false,
+                    version: null,
+                    dependencies: [],
+                  },
+                  {
+                    id: 'json',
+                    source: 'builtin',
+                    loaded: true,
+                    builtin: true,
+                    compatible: true,
+                    version: version,
+                    dependencies: [],
+                  },
+                ],
+              };
+            }
             if (command === 'install_package' && status) {
               const version = String(args.version);
               service.installations.push({
@@ -112,15 +182,19 @@ async function mockNative(page: Page) {
               if (status) status.version = service.activeVersion;
             } else if (command === 'get_path_status') {
               const directory = service.activeVersion
-                ? `C:\\Larager\\packages\\${id}\\${service.activeVersion}`
+                ? id === 'php'
+                  ? 'C:\\Larager\\config\\cli\\php'
+                  : `C:\\Larager\\packages\\${id}\\${service.activeVersion}`
                 : null;
               return {
                 enabled: service.addToPath,
                 present: service.addToPath,
                 directory,
                 version: service.activeVersion,
-                command: id === 'php' ? 'php.exe' : `${id}.exe`,
-                firstMatch: service.addToPath ? `${directory}\\${id}.exe` : null,
+                command: id === 'php' ? 'php.cmd' : `${id}.exe`,
+                firstMatch: service.addToPath
+                  ? `${directory}\\${id}.${id === 'php' ? 'cmd' : 'exe'}`
+                  : null,
                 shadowed: false,
                 external: false,
                 phpConfig:
@@ -208,6 +282,82 @@ test('clean start, responsive pages and complete locale switching', async ({ pag
   await page.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(errors).toEqual([]);
+});
+
+test('PHP extensions select compatible builds, preserve errors and remain separate by version', async ({
+  page,
+}, testInfo) => {
+  await mockNative(page);
+  await page.goto('/');
+  await page
+    .getByTestId('service-php')
+    .getByRole('button', { name: 'Install', exact: true })
+    .click();
+  const drawer = page.getByRole('dialog', { name: 'PHP settings', exact: true });
+  await drawer.getByRole('tab', { name: 'Extensions', exact: true }).click();
+  await expect(drawer.getByText('Install PHP first', { exact: true })).toBeVisible();
+  await drawer.getByRole('tab', { name: 'Overview', exact: true }).click();
+  await drawer.getByRole('button', { name: 'Download & install', exact: true }).click();
+  const phps = catalog.packages.filter((pkg) => pkg.service === 'php');
+  await drawer.getByRole('tab', { name: 'Extensions', exact: true }).click();
+  await expect(drawer.getByText('Automatic compatibility', { exact: true })).toBeVisible();
+  await expect(drawer.getByTestId('extension-apcu').getByRole('button')).toBeDisabled();
+  await expect(drawer.getByTestId('extension-json').getByRole('button')).toHaveCount(0);
+  await drawer
+    .getByTestId('extension-intl')
+    .getByRole('button', { name: 'Enable', exact: true })
+    .click();
+  await expect(
+    drawer.getByTestId('extension-intl').getByText('Enabled', { exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => Reflect.set(window, '__failExtensionInstall', true));
+  await drawer
+    .getByTestId('extension-redis')
+    .getByRole('button', { name: 'Install & enable', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText('Previous configuration preserved.');
+  await expect(
+    drawer
+      .getByTestId('extension-redis')
+      .getByRole('button', { name: 'Install & enable', exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(() => Reflect.set(window, '__failExtensionInstall', false));
+  await drawer
+    .getByTestId('extension-redis')
+    .getByRole('button', { name: 'Install & enable', exact: true })
+    .click();
+  await expect(
+    drawer.getByTestId('extension-redis').getByRole('button', { name: 'Disable', exact: true }),
+  ).toBeVisible();
+  await drawer.getByRole('searchbox', { name: 'Search extensions' }).fill('redis');
+  await expect(drawer.locator('.extension-row')).toHaveCount(1);
+  await drawer.getByRole('searchbox', { name: 'Search extensions' }).fill('');
+  await drawer.getByRole('combobox', { name: 'Filter extensions', exact: true }).click();
+  await drawer.getByRole('option', { name: 'Enabled', exact: true }).click();
+  await expect(drawer.locator('.extension-row')).toHaveCount(3);
+  expect(await drawer.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('php-extensions.png') });
+  await drawer
+    .getByTestId('extension-redis')
+    .getByRole('button', { name: 'Disable', exact: true })
+    .click();
+  await expect(drawer.getByTestId('extension-redis')).toHaveCount(0);
+  const calls = await page.evaluate(
+    () => Reflect.get(window, '__extensionCalls') as Record<string, unknown>[],
+  );
+  expect(calls[0]).toEqual({ version: phps[0].version, extension: 'intl', enabled: true });
+  expect(calls.at(-1)).toEqual({ version: phps[0].version, extension: 'redis', enabled: false });
+  await drawer.getByRole('tab', { name: 'Overview', exact: true }).click();
+  await drawer.getByRole('combobox', { name: 'Choose a version', exact: true }).click();
+  await drawer.getByRole('option', { name: phps[1].version, exact: true }).click();
+  await drawer.getByRole('button', { name: 'Download & install', exact: true }).click();
+  await drawer.getByRole('combobox', { name: 'Active version', exact: true }).click();
+  await drawer.getByRole('option', { name: phps[1].version, exact: true }).click();
+  await drawer.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await drawer.getByRole('tab', { name: 'Extensions', exact: true }).click();
+  await expect(
+    drawer.getByTestId('extension-intl').getByRole('button', { name: 'Enable', exact: true }),
+  ).toBeVisible();
 });
 
 test('version installation, service lifecycle and local Monaco editor', async ({
@@ -419,6 +569,14 @@ test('optional user PATH follows the active version and survives additional inst
   const active = drawer.getByRole('combobox', { name: 'Active version', exact: true });
   await expect(active).toHaveText(firstVersion);
   await expect(drawer.locator('.path-section')).toContainText(firstVersion);
+  await expect(drawer.locator('.path-section')).toContainText(
+    'The php command automatically loads the active version’s php.ini and extensions.',
+  );
+  await expect(drawer.locator('.path-section')).not.toContainText('php -c');
+  const launcherDirectory = await drawer
+    .locator('.path-section .path-directory')
+    .first()
+    .innerText();
   await install.click();
   const next = drawer.getByRole('option').nth(1);
   const secondVersion = (await next.innerText()).trim();
@@ -433,7 +591,10 @@ test('optional user PATH follows the active version and survives additional inst
   await drawer.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(drawer.locator('.path-section')).toContainText(secondVersion);
   await expect(drawer.locator('.path-section .path-directory').first()).toContainText(
-    secondVersion,
+    launcherDirectory,
+  );
+  await expect(drawer.locator('.path-section .path-directory').last()).toContainText(
+    `php\\${secondVersion}\\php.ini`,
   );
   await path.focus();
   await page.keyboard.press('Space');

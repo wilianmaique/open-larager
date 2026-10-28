@@ -3,6 +3,7 @@ use crate::{
     error::{Result, invalid},
     installer,
     model::*,
+    php_extensions,
     platform::{self, Process},
     sites,
     storage::{Storage, atomic_write, slash},
@@ -85,8 +86,9 @@ struct MailpitConfig {
 impl Engine {
     pub fn open(root: PathBuf) -> Result<Self> {
         let storage = Storage::open(root)?;
-        let settings = storage.load()?;
+        let mut settings = storage.load()?;
         user_path::recover(&storage, &settings)?;
+        user_path::upgrade_php_cli(&storage, &mut settings)?;
         Ok(Self {
             storage,
             settings: RwLock::new(settings),
@@ -831,10 +833,13 @@ impl Engine {
         sites::validate_upstreams(&settings)?;
         let mut changes = Vec::new();
         if let Some(version) = version.filter(|_| id.definition().config_name.is_some()) {
-            // Port changes regenerate a managed config; keep one recoverable copy of manual edits.
+            // Each PHP version retains its php.ini and extension choices.
+            // Other services regenerate on port/version changes, keeping a backup.
             let path = self.storage.config(id, &version);
-            if current.services[&id].ports != settings.services[&id].ports
-                || current.services[&id].active_version != settings.services[&id].active_version
+            if (id != ServiceId::Php
+                && (current.services[&id].ports != settings.services[&id].ports
+                    || current.services[&id].active_version
+                        != settings.services[&id].active_version))
                 || !path.exists()
             {
                 if path.exists() {
@@ -1094,6 +1099,255 @@ impl Engine {
         }
         Ok(())
     }
+    pub async fn php_extensions(&self) -> Result<php_extensions::Inventory> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let settings = self.settings.read().await.clone();
+        let version = self.active(&settings, ServiceId::Php)?;
+        config::ensure(&self.storage, ServiceId::Php, version, &settings)?;
+        let base = php_extensions::probe(&self.storage, version, None).await?;
+        php_extensions::assert_clean(&base)?;
+        let current = php_extensions::probe(
+            &self.storage,
+            version,
+            Some(&self.storage.config(ServiceId::Php, version)),
+        )
+        .await?;
+        php_extensions::inventory(&self.storage, version, &base, current)
+    }
+
+    pub async fn set_php_extension(
+        &self,
+        version: String,
+        extension: String,
+        enabled: bool,
+        progress: impl Fn(installer::Progress) + Send + Sync,
+    ) -> Result<php_extensions::Inventory> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let settings = self.settings.read().await.clone();
+        if self.active(&settings, ServiceId::Php)? != version {
+            return Err(invalid(
+                "The active PHP version changed. Refresh the extensions list.",
+            ));
+        }
+        let catalog = php_extensions::catalog()?;
+        let definition = catalog
+            .extensions
+            .iter()
+            .find(|entry| entry.id == extension)
+            .ok_or_else(|| invalid("Unknown PHP extension"))?;
+        config::ensure(&self.storage, ServiceId::Php, &version, &settings)?;
+        let base = php_extensions::probe(&self.storage, &version, None).await?;
+        php_extensions::assert_clean(&base)?;
+        if base.runtime.version != version.split('-').next().unwrap_or_default() {
+            return Err(invalid(
+                "The installed PHP executable does not match its selected version",
+            ));
+        }
+        if php_extensions::has_module(&base, definition) {
+            return Err(invalid(
+                "This extension is compiled into PHP and cannot be changed",
+            ));
+        }
+        let cancelled = Arc::new(AtomicBool::new(false));
+        *self
+            .cancel
+            .lock()
+            .map_err(|_| invalid("Operation lock unavailable"))? =
+            Some((ServiceId::Php, cancelled.clone()));
+        let result = self
+            .change_php_extension(
+                &settings, &version, &catalog, definition, &base, enabled, cancelled, &progress,
+            )
+            .await;
+        *self
+            .cancel
+            .lock()
+            .map_err(|_| invalid("Operation lock unavailable"))? = None;
+        result
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn change_php_extension(
+        &self,
+        settings: &Settings,
+        version: &str,
+        catalog: &php_extensions::Catalog,
+        definition: &php_extensions::Definition,
+        base: &php_extensions::Probe,
+        enabled: bool,
+        cancelled: Arc<AtomicBool>,
+        progress: &(impl Fn(installer::Progress) + Send + Sync),
+    ) -> Result<php_extensions::Inventory> {
+        let path = self.storage.config(ServiceId::Php, version);
+        let before = fs::read_to_string(&path)?;
+        let current = php_extensions::probe(&self.storage, version, Some(&path)).await?;
+        if !enabled {
+            for dependent in &catalog.extensions {
+                if dependent.dependencies.contains(&definition.id)
+                    && php_extensions::has_module(&current, dependent)
+                {
+                    return Err(invalid(format!(
+                        "Disable {} before disabling {}",
+                        dependent.id, definition.id
+                    )));
+                }
+            }
+        }
+        let mut content = before.clone();
+        if enabled {
+            // Dependencies here are bundled with the selected PHP archive; no implicit downloads.
+            for dependency in &definition.dependencies {
+                let dependency = catalog
+                    .extensions
+                    .iter()
+                    .find(|entry| &entry.id == dependency)
+                    .ok_or_else(|| invalid("Unknown extension dependency"))?;
+                if !php_extensions::has_module(&current, dependency) {
+                    if dependency.source != "bundled" {
+                        return Err(invalid("Enable the required extension first"));
+                    }
+                    let dll = self
+                        .storage
+                        .package(ServiceId::Php, version)
+                        .join("ext")
+                        .join(php_extensions::dll(dependency));
+                    if !dll.is_file() {
+                        return Err(invalid("A required bundled PHP extension is missing"));
+                    }
+                    content = php_extensions::configure(&content, dependency, Some(&dll))?;
+                }
+            }
+        }
+        let dll = if enabled {
+            if definition.source == "bundled" {
+                let dll = self
+                    .storage
+                    .package(ServiceId::Php, version)
+                    .join("ext")
+                    .join(php_extensions::dll(definition));
+                if !dll.is_file() {
+                    return Err(invalid(
+                        "This extension is not included with the selected PHP build",
+                    ));
+                }
+                Some(dll)
+            } else {
+                let artifact = catalog.artifacts.iter().find(|artifact| artifact.id == definition.id && artifact.matches(&base.runtime)).ok_or_else(|| invalid("No verified extension build matches this PHP version, architecture, compiler and thread safety"))?;
+                let directory = artifact.directory(&self.storage, version);
+                if !directory.exists() {
+                    installer::install_files(
+                        &artifact.package(),
+                        &self.storage.root.join(".staging"),
+                        &directory,
+                        cancelled.clone(),
+                        progress,
+                        &[php_extensions::dll(definition)],
+                    )
+                    .await?;
+                }
+                php_extensions::verify_cached(artifact, &directory, definition)?;
+                Some(directory.join(php_extensions::dll(definition)))
+            }
+        } else {
+            None
+        };
+        content = php_extensions::configure(&content, definition, dll.as_deref())?;
+        let report = |phase: &str| {
+            progress(installer::Progress {
+                service: "php".into(),
+                version: version.into(),
+                phase: phase.into(),
+                downloaded: 0,
+                total: None,
+            })
+        };
+        report("validating");
+        let candidate = path.with_extension("extension-candidate.ini");
+        atomic_write(&candidate, content.as_bytes())?;
+        let validated = php_extensions::probe(&self.storage, version, Some(&candidate)).await;
+        let _ = fs::remove_file(&candidate);
+        let validated = validated?;
+        php_extensions::assert_clean(&validated)?;
+        if php_extensions::has_module(&validated, definition) != enabled {
+            return Err(invalid("PHP did not apply the requested extension state"));
+        }
+        for module in current.modules.keys() {
+            if !module.eq_ignore_ascii_case(&definition.module)
+                && !validated.modules.contains_key(module)
+            {
+                return Err(invalid(format!(
+                    "The extension change would unload {module}"
+                )));
+            }
+        }
+        if cancelled.load(Ordering::Relaxed) {
+            return Err(invalid("Installation cancelled"));
+        }
+        if fs::read_to_string(&path)? != before {
+            return Err(invalid(
+                "php.ini changed during this operation. Refresh the extensions list and retry.",
+            ));
+        }
+        // Validate before touching the live configuration or process. Gateways keep their listeners.
+        let was_running = self
+            .running
+            .lock()
+            .await
+            .get_mut(&ServiceId::Php)
+            .map(|running| running.process.alive())
+            .transpose()?
+            .unwrap_or(false);
+        atomic_write(&path.with_extension("previous"), before.as_bytes())?;
+        if was_running {
+            self.stop(ServiceId::Php).await?;
+            report("reloading");
+        }
+        if let Err(error) = self
+            .commit_files(settings.clone(), vec![(path.clone(), content)])
+            .await
+        {
+            report("restoring");
+            if was_running && let Err(restart) = self.start(ServiceId::Php).await {
+                self.failures
+                    .write()
+                    .await
+                    .insert(ServiceId::Php, restart.to_string());
+                return Err(invalid(format!("{error}; restoring PHP failed: {restart}")));
+            }
+            return Err(error);
+        }
+        if was_running && let Err(error) = self.start(ServiceId::Php).await {
+            report("restoring");
+            self.commit_files(settings.clone(), vec![(path, before)])
+                .await
+                .map_err(|rollback| {
+                    invalid(format!(
+                        "PHP restart failed: {error}; configuration rollback failed: {rollback}"
+                    ))
+                })?;
+            if let Err(restart) = self.start(ServiceId::Php).await {
+                self.failures
+                    .write()
+                    .await
+                    .insert(ServiceId::Php, restart.to_string());
+                return Err(invalid(format!(
+                    "Configuration restored, but PHP could not restart: {restart}; original failure: {error}"
+                )));
+            }
+            return Err(invalid(format!(
+                "PHP restart failed; the previous configuration and service were restored: {error}"
+            )));
+        }
+        self.failures.write().await.remove(&ServiceId::Php);
+        php_extensions::inventory(&self.storage, version, base, validated)
+    }
+
     pub async fn save_preferences(&self, language: String, theme: String) -> Result<()> {
         let _operation = self
             .operation

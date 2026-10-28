@@ -37,6 +37,26 @@ pub async fn install(
     cancelled: Arc<AtomicBool>,
     progress: impl Fn(Progress) + Send + Sync,
 ) -> Result<()> {
+    install_files(
+        package,
+        staging_root,
+        destination,
+        cancelled,
+        progress,
+        &package.service.definition().required_files,
+    )
+    .await
+}
+
+/// Uses the same origin, digest and extraction checks for curated extension archives.
+pub async fn install_files(
+    package: &Package,
+    staging_root: &Path,
+    destination: &Path,
+    cancelled: Arc<AtomicBool>,
+    progress: impl Fn(Progress) + Send + Sync,
+    required_files: &[String],
+) -> Result<()> {
     if destination.exists() {
         return Err(invalid(
             "Package directory already exists; remove the inactive installation before reinstalling",
@@ -44,7 +64,15 @@ pub async fn install(
     }
     let staging = staging_root.join(uuid::Uuid::new_v4().to_string());
     fs::create_dir_all(&staging)?;
-    let result = install_inner(package, &staging, destination, cancelled, progress).await;
+    let result = install_inner(
+        package,
+        &staging,
+        destination,
+        cancelled,
+        progress,
+        required_files,
+    )
+    .await;
     let _ = fs::remove_dir_all(staging);
     result
 }
@@ -55,6 +83,7 @@ async fn install_inner(
     destination: &Path,
     cancelled: Arc<AtomicBool>,
     progress: impl Fn(Progress) + Send + Sync,
+    required_files: &[String],
 ) -> Result<()> {
     validate_download_url(&package.url)?;
     let client = reqwest::Client::builder()
@@ -142,7 +171,7 @@ async fn install_inner(
         return Err(invalid("Installation cancelled"));
     }
     let content = unpacked.join(&package.archive_root);
-    for required in &package.service.definition().required_files {
+    for required in required_files {
         if !content.join(required).is_file() {
             return Err(invalid(format!(
                 "Expected package file is missing: {required}"
@@ -153,6 +182,10 @@ async fn install_inner(
         destination
             .parent()
             .ok_or_else(|| invalid("Missing installation parent"))?,
+    )?;
+    crate::storage::atomic_write(
+        &content.join(".larager-artifact"),
+        package.sha256.as_bytes(),
     )?;
     fs::rename(content, destination)?;
     progress(Progress {

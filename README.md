@@ -34,13 +34,19 @@ Resultado: `src-tauri/target/release/open-larager.exe`. O executável contém a 
 
 Também é possível servir arquivos estáticos ou encaminhar um domínio para uma porta local de outra aplicação. A CA local é exclusiva do ambiente, gera e renova os certificados via Caddy e pode ser removida pelo painel. Ela nunca solicita certificados públicos para esses domínios.
 
+## Extensões do PHP
+
+No painel do PHP, abra **Extensões**, busque a extensão e clique em **Ativar** ou **Instalar e ativar**. O app identifica a versão real do PHP, x64, TS/NTS e compilador. Extensões incluídas na distribuição usam suas próprias DLLs; Redis, Xdebug, APCu e igbinary usam builds PECL oficiais com SHA-256 fixado. Sem build compatível, a instalação fica indisponível. Extensões integradas ao executável aparecem sem ação de remoção.
+
+O app preserva as demais opções do `php.ini`, ativa dependências incluídas quando necessárias e testa o carregamento antes de aplicar. PHP em execução reinicia automaticamente; se o reinício falhar, o app tenta restaurar a configuração e iniciar o estado anterior. PHP parado continua parado. Nginx, Apache e Caddy mantêm seus listeners. Cada versão do PHP mantém suas próprias escolhas, inclusive ao trocar a versão ativa; desativar preserva as DLLs em cache. O Composer e o comando `php` registrado no PATH usam automaticamente a configuração gerenciada.
+
 ## Comandos no terminal
 
 Ao instalar um pacote, **Adicionar a versão ativa ao meu PATH** é opcional e vem desmarcado. O painel do serviço também permite registrar, remover ou reparar essa entrada depois. O app altera apenas o PATH do usuário Windows, sem elevação, e informa a versão e a pasta selecionadas.
 
 O PATH acompanha a **Versão ativa**. Instalar outra versão não muda a ativa; ao selecionar e salvar outra versão instalada, o app substitui a entrada que gerencia. Ao remover a versão ativa, o PATH acompanha a versão restante indicada na confirmação; sem versões restantes, a entrada é removida. Entradas externas, inclusive uma entrada idêntica que já existia antes do registro, são preservadas. Se outra instalação tiver prioridade no PATH do Windows, o painel mostra o caminho encontrado.
 
-Feche e reabra o aplicativo de terminal, incluindo Windows Terminal ou VS Code, para usar o ambiente atualizado. No PHP, o comando `php` mantém a busca padrão de `php.ini`; o painel mostra como usar `php -c` com a configuração gerenciada pelo app. O registro não altera `PHPRC` globalmente. Antes de mover ou apagar um ambiente portátil, remova suas entradas pelo painel e registre novamente no novo local.
+Feche e reabra o aplicativo de terminal, incluindo Windows Terminal ou VS Code, após registrar ou remover o PATH. O comando gerenciado `php` fica em `config/cli/php/php.cmd` e carrega o `php.ini` e as extensões da versão ativa, também nos processos PHP que inicia. Trocas de versão e alterações de extensões valem no próximo comando, inclusive em terminais já abertos com essa pasta no PATH. Registros antigos do PHP são atualizados ao abrir o app; após essa atualização, reabra o terminal uma vez. O registro não altera `PHPRC` globalmente. Antes de mover ou apagar um ambiente portátil, remova suas entradas pelo painel e registre novamente no novo local.
 
 Node.js e Composer aparecem como ferramentas de terminal, com estado **Pronto** e seleção de versão. Não possuem processo de fundo, portas ou inicialização automática. O npm e o npx vêm da mesma distribuição do Node.js; o painel mostra a versão incluída. O catálogo oferece duas linhas LTS e a versão corrente do Node.js. Atualizações passam pelo catálogo; evite `npm install -g npm` ou `composer self-update` nas distribuições gerenciadas.
 
@@ -58,6 +64,7 @@ Por padrão, o ambiente fica em `%LOCALAPPDATA%/dev.openlarager.desktop`. Crie u
 
 ```text
 packages/<serviço>/<versão>/   Binários da distribuição
+packages/php-extensions/      DLLs PECL isoladas por versão do PHP e SHA-256
 config/<serviço>/<versão>/     Configurações e uma cópia anterior
 data/<serviço>/<versão>/       Dados persistentes, separados por versão
 data/tls/                     Autoridade certificadora e certificados locais

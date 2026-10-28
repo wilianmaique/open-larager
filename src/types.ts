@@ -90,11 +90,41 @@ export interface Snapshot {
 export interface Progress {
   service: ServiceId;
   version: string;
-  phase: 'downloading' | 'verifying' | 'extracting' | 'complete';
+  phase:
+    | 'downloading'
+    | 'verifying'
+    | 'extracting'
+    | 'complete'
+    | 'validating'
+    | 'reloading'
+    | 'restoring';
   downloaded: number;
   total: number | null;
 }
 export interface Credentials {
   username: string;
   password: string;
+}
+export interface PhpExtension {
+  id: string;
+  source: 'bundled' | 'pecl' | 'builtin';
+  loaded: boolean;
+  builtin: boolean;
+  compatible: boolean;
+  version: string | null;
+  dependencies: string[];
+}
+export interface PhpExtensions {
+  phpVersion: string;
+  runtime: {
+    version: string;
+    branch: string;
+    architecture: string;
+    threadSafe: boolean;
+    debug: boolean;
+    compiler: string;
+    build: string;
+  };
+  extensions: PhpExtension[];
+  diagnostics: string;
 }

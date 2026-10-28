@@ -1,5 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { Settings, Snapshot, SiteConfig, PathStatus, ServiceId } from './types';
+import type { Settings, Snapshot, SiteConfig, PathStatus, ServiceId, PhpExtensions } from './types';
 import { serviceIds } from './types';
 import { defaultPorts } from './serviceRegistry';
 import catalog from '../src-tauri/catalog/packages.json';
@@ -60,4 +60,10 @@ export const userPathApi = {
   set: (id: ServiceId, enabled: boolean) => call('set_user_path', { id, enabled }),
   install: (id: ServiceId, version: string, addToPath: boolean) =>
     call('install_package', { id, version, addToPath }),
+};
+export const phpExtensionsApi = {
+  list: () => call<PhpExtensions>('get_php_extensions'),
+  set: (version: string, extension: string, enabled: boolean) =>
+    call<PhpExtensions>('set_php_extension', { version, extension, enabled }),
+  cancel: () => call('cancel_install', { id: 'php' }),
 };

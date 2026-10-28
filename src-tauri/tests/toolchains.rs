@@ -84,6 +84,170 @@ async fn shells(engine: &Engine, node_version: &str, npm_version: &str, composer
     }
 }
 
+async fn php_shells(engine: &Engine, path: &std::ffi::OsStr, version: &str, intl: bool) {
+    for executable in ["powershell.exe", "cmd.exe"] {
+        let mut command = platform::command(executable);
+        if executable == "powershell.exe" {
+            command.args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "php 'cli fixture.php' 'argument with spaces'; exit $LASTEXITCODE",
+            ]);
+        } else {
+            command
+                .args(["/D", "/C"])
+                .raw_arg(r#"php "cli fixture.php" "argument with spaces""#);
+        }
+        command
+            .env("PATH", path)
+            .env("PHPRC", engine.storage.root.join("external.ini"))
+            .env("PHP_INI_SCAN_DIR", engine.storage.root.join("external-ini"))
+            .current_dir(engine.storage.root.join("projects"));
+        let output = platform::checked_output(command, Duration::from_secs(30))
+            .await
+            .unwrap();
+        let result: serde_json::Value = serde_json::from_str(output.trim()).expect(&output);
+        assert_eq!(
+            result["version"],
+            version.split('-').next().unwrap(),
+            "{executable}"
+        );
+        assert_eq!(result["argument"], "argument with spaces", "{executable}");
+        assert_eq!(result["intl"], intl, "{executable}");
+        assert_eq!(result["memory"], "256M", "{executable}");
+        assert!(
+            result["drivers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|driver| driver == "pgsql"),
+            "{executable}: {result}"
+        );
+        for name in ["ini", "childIni"] {
+            assert_eq!(
+                Path::new(result[name].as_str().unwrap())
+                    .canonicalize()
+                    .unwrap(),
+                engine
+                    .storage
+                    .config(ServiceId::Php, version)
+                    .canonicalize()
+                    .unwrap(),
+                "{executable}: {name}"
+            );
+        }
+        let mut exit = platform::command(executable);
+        if executable == "powershell.exe" {
+            exit.args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "php -r 'exit(23);'; exit $LASTEXITCODE",
+            ]);
+        } else {
+            exit.args(["/D", "/C"]).raw_arg(r#"php -r "exit(23);""#);
+        }
+        assert_eq!(
+            exit.env("PATH", path)
+                .current_dir(engine.storage.root.join("projects"))
+                .output()
+                .unwrap()
+                .status
+                .code(),
+            Some(23),
+            "{executable}: PHP exit status must reach the caller"
+        );
+    }
+}
+
+#[tokio::test]
+#[ignore = "Downloads two pinned PHP versions into a temporary Unicode workspace; never changes the real PATH."]
+async fn php_cli_uses_active_configuration_and_extensions_in_both_shells() {
+    let workspace = tempfile::Builder::new()
+        .prefix("Larager PHP á ! & ")
+        .tempdir()
+        .unwrap();
+    let engine = Engine::open(workspace.path().to_owned()).unwrap();
+    let phps: Vec<_> = catalog::packages()
+        .unwrap()
+        .into_iter()
+        .filter(|package| package.service == ServiceId::Php)
+        .take(2)
+        .collect();
+    for php in &phps {
+        engine
+            .install(ServiceId::Php, php.version.clone(), |_| {})
+            .await
+            .unwrap();
+    }
+    let project = engine.storage.root.join("projects");
+    fs::write(project.join("cli fixture.php"), r#"<?php
+$child = proc_open([PHP_BINARY, '-r', 'echo php_ini_loaded_file();'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+$childIni = stream_get_contents($pipes[1]);
+$childErrors = stream_get_contents($pipes[2]);
+fclose($pipes[1]);
+fclose($pipes[2]);
+if (proc_close($child) !== 0 || $childErrors !== '') {
+    fwrite(STDERR, $childErrors);
+    exit(1);
+}
+echo json_encode([
+    'version' => PHP_VERSION,
+    'ini' => php_ini_loaded_file(),
+    'childIni' => $childIni,
+    'drivers' => PDO::getAvailableDrivers(),
+    'intl' => extension_loaded('intl'),
+    'memory' => ini_get('memory_limit'),
+    'argument' => $argv[1],
+], JSON_THROW_ON_ERROR);
+"#).unwrap();
+    fs::write(
+        engine.storage.root.join("external.ini"),
+        "memory_limit=123M\n",
+    )
+    .unwrap();
+    fs::create_dir(engine.storage.root.join("external-ini")).unwrap();
+    fs::write(
+        engine.storage.root.join("external-ini/override.ini"),
+        "memory_limit=124M\n",
+    )
+    .unwrap();
+    launchers(&engine, ServiceId::Php).await;
+    // Keep exactly the same PATH for every invocation, as in an already-open terminal.
+    let mut directories = toolchain::layout(
+        &engine.storage,
+        &*engine.settings.read().await,
+        ServiceId::Php,
+    )
+    .unwrap()
+    .directories;
+    directories.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    let path = std::env::join_paths(directories).unwrap();
+    php_shells(&engine, &path, &phps[0].version, false).await;
+    engine
+        .set_php_extension(phps[0].version.clone(), "intl".into(), true, |_| {})
+        .await
+        .unwrap();
+    php_shells(&engine, &path, &phps[0].version, true).await;
+    for (php, intl) in [(&phps[1], false), (&phps[0], true)] {
+        engine
+            .save_service(
+                ServiceId::Php,
+                Some(php.version.clone()),
+                ServiceId::Php.ports(),
+                false,
+            )
+            .await
+            .unwrap();
+        launchers(&engine, ServiceId::Php).await;
+        php_shells(&engine, &path, &php.version, intl).await;
+    }
+    engine.shutdown().await;
+}
+
 #[tokio::test]
 #[ignore = "Downloads pinned Node.js, PHP and Composer into a temporary Unicode workspace; never changes the real PATH."]
 async fn node_npm_composer_versions_and_preserved_tool_data() {

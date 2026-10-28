@@ -30,6 +30,7 @@ import { call, packages, userPathApi } from './api';
 import { descriptionKeys, useApp } from './state';
 import { services } from './serviceRegistry';
 import { Logs } from './Logs';
+import { PhpExtensions } from './PhpExtensions';
 import { serviceIds, type Credentials, type ServiceId, type PathStatus } from './types';
 import type { Key } from './i18n';
 
@@ -51,7 +52,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
     .map((dependency) => snapshot.settings.services[dependency as ServiceId].activeVersion)
     .join(',');
   const available = packages.filter((pkg) => pkg.service === id);
-  const [tab, setTab] = useState<'overview' | 'configuration' | 'logs'>('overview');
+  const [tab, setTab] = useState<'overview' | 'extensions' | 'configuration' | 'logs'>('overview');
   const [installVersion, setInstallVersion] = useState(available[0]?.version ?? '');
   const [activeVersion, setActiveVersion] = useState(config.activeVersion ?? '');
   const [ports, setPorts] = useState(config.ports.map(String));
@@ -205,6 +206,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
         {(
           [
             'overview',
+            ...(id === 'php' ? ['extensions' as const] : []),
             ...(service.configName ? ['configuration' as const] : []),
             ...(service.daemon ? ['logs' as const] : []),
           ] as const
@@ -221,6 +223,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
       </div>
       <div className="drawer-body" role="tabpanel">
         <div data-notification-host />
+        {tab === 'extensions' && id === 'php' && <PhpExtensions version={config.activeVersion} />}
         {!service.daemon && (
           <section className="drawer-section">
             <p>{t('terminalToolHelp')}</p>
@@ -467,9 +470,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                 {config.addToPath && pathStatus?.phpConfig && (
                   <p className="field-help">
                     {t('pathPhpConfig')}
-                    <code className="path-directory">
-                      php -c &quot;{pathStatus.phpConfig}&quot;
-                    </code>
+                    <code className="path-directory">{pathStatus.phpConfig}</code>
                   </p>
                 )}
               </section>

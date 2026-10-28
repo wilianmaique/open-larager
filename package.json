@@ -19,7 +19,8 @@
     "test:desktop": "node scripts/verify-desktop.mjs",
     "format": "prettier --write src tests scripts *.json *.ts",
     "format:check": "prettier --check src tests scripts *.json *.ts",
-    "catalog:refresh": "node scripts/refresh-catalog.mjs"
+    "catalog:refresh": "node scripts/refresh-catalog.mjs && node scripts/refresh-php-extensions.mjs",
+    "catalog:extensions": "node scripts/refresh-php-extensions.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "4.7.0",

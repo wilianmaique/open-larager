@@ -97,7 +97,7 @@ fn managed_directory(storage: &Storage, path: PathBuf) -> Result<PathBuf> {
 }
 
 pub fn prepare(storage: &Storage, id: ServiceId, version: &str) -> Result<()> {
-    if id.is_daemon() {
+    if id.is_daemon() && id != ServiceId::Php {
         return Ok(());
     }
     let launcher = managed_directory(storage, storage.root.join("config/cli").join(id.key()))?;
@@ -122,7 +122,7 @@ pub fn layout(storage: &Storage, settings: &Settings, id: ServiceId) -> Result<C
         commands: Vec::new(),
         files: Vec::new(),
     };
-    if id.is_daemon() {
+    if id.is_daemon() && id != ServiceId::Php {
         let executable = package_file(storage, settings, id, id.cli_executable())?;
         layout
             .directories
@@ -139,6 +139,20 @@ pub fn layout(storage: &Storage, settings: &Settings, id: ServiceId) -> Result<C
         let launcher = managed_directory(storage, storage.root.join("config/cli").join(id.key()))?;
         layout.directories.push(launcher.clone());
         match id {
+            ServiceId::Php => {
+                let php = package_file(storage, settings, id, "php.exe")?;
+                let php_config = storage.config(id, version);
+                let content = format!(
+                    "{HEADER}set \"PHPRC={}\"\r\nset \"PHP_INI_SCAN_DIR=\"\r\nset \"PATH={};%PATH%\"\r\n\"{}\" -c \"{}\" %*\r\nexit /b %errorlevel%\r\n",
+                    launcher_path(storage, &php_config)?,
+                    launcher_path(storage, php.parent().unwrap())?,
+                    launcher_path(storage, &php)?,
+                    launcher_path(storage, &php_config)?
+                );
+                let file = launcher.join("php.cmd");
+                layout.commands.push(("php.cmd".into(), file.clone()));
+                layout.files.push((file, content));
+            }
             ServiceId::Nodejs => {
                 let node = package_file(storage, settings, id, "node.exe")?;
                 let native = node.parent().unwrap();

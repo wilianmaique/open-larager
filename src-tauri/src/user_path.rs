@@ -507,6 +507,48 @@ pub fn recover(storage: &Storage, settings: &Settings) -> Result<()> {
     }
 }
 
+fn has_legacy_php_path(storage: &Storage, settings: &Settings) -> Result<bool> {
+    let php = &settings.services[&ServiceId::Php];
+    if !php.add_to_path {
+        return Ok(false);
+    }
+    Ok(registrations(storage)?
+        .get(&ServiceId::Php)
+        .is_some_and(|record| {
+            record.entries().iter().any(|entry| {
+                php.installations.iter().any(|installation| {
+                    key(&entry.directory)
+                        == key(&storage
+                            .package(ServiceId::Php, &installation.version)
+                            .to_string_lossy())
+                })
+            })
+        }))
+}
+
+/// Upgrade existing opt-in registrations through the same recoverable PATH
+/// transaction as a version switch, preserving externally owned entries.
+pub fn upgrade_php_cli(storage: &Storage, settings: &mut Settings) -> Result<()> {
+    if !has_legacy_php_path(storage, settings)? {
+        return Ok(());
+    }
+    let previous = settings.clone();
+    let mut next = previous.clone();
+    next.revision = previous
+        .revision
+        .checked_add(1)
+        .ok_or_else(|| invalid("Settings revision overflow"))?;
+    transaction(
+        storage,
+        &previous,
+        &mut next,
+        Vec::new(),
+        Some(ServiceId::Php),
+    )?;
+    *settings = next;
+    Ok(())
+}
+
 fn recover_environment(
     environment: &impl Environment,
     storage: &Storage,
@@ -550,11 +592,17 @@ pub fn status(storage: &Storage, settings: &Settings, id: ServiceId) -> Result<P
             expandable: true,
         },
     );
-    let command = Path::new(id.cli_executable())
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .into_owned();
+    let command = layout
+        .as_ref()
+        .and_then(|layout| layout.commands.first())
+        .map(|(command, _)| command.clone())
+        .unwrap_or_else(|| {
+            Path::new(id.cli_executable())
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+        });
     let search_directories: Vec<_> = machine
         .text
         .split(';')
@@ -912,8 +960,12 @@ mod tests {
             .active_version = Some("8.4.0".into());
         update(&fake, &storage, &repaired, &mut second);
         let value = fake.read().unwrap().unwrap();
-        assert!(!contains(&value.text, &directory));
-        assert!(value.text.contains("8.4.0"));
+        assert!(contains(&value.text, &directory));
+        let launcher = fs::read_to_string(storage.root.join("config/cli/php/php.cmd")).unwrap();
+        assert!(launcher.is_ascii());
+        assert!(launcher.contains("packages\\php\\8.4.0\\php.exe"));
+        assert!(launcher.contains("config\\php\\8.4.0\\php.ini"));
+        assert!(!launcher.contains("8.3.0"));
         let mut disabled = second.clone();
         disabled
             .services
@@ -928,6 +980,77 @@ mod tests {
                 expandable: false
             }
         );
+    }
+
+    #[test]
+    fn upgrades_legacy_php_registration_atomically_and_preserves_external_paths_and_config() {
+        for owned in [true, false] {
+            let workspace = tempfile::tempdir().unwrap();
+            let storage = Storage::open(workspace.path().to_owned()).unwrap();
+            let mut previous = installed(&storage);
+            previous
+                .services
+                .get_mut(&ServiceId::Php)
+                .unwrap()
+                .add_to_path = true;
+            let native = storage.package(ServiceId::Php, "8.3.0");
+            let original = format!("{};C:\\External", native.display());
+            let fake = Fake::new(&original, true);
+            atomic_json(
+                &storage.root.join("config/path/registrations.json"),
+                &BTreeMap::from([(
+                    ServiceId::Php,
+                    Registration {
+                        directory: native.to_string_lossy().into_owned(),
+                        owned,
+                    },
+                )]),
+            )
+            .unwrap();
+            storage.prepare(ServiceId::Php, "8.3.0").unwrap();
+            let config = storage.config(ServiceId::Php, "8.3.0");
+            fs::write(&config, "extension=pdo_pgsql\nmemory_limit=512M\n").unwrap();
+            let config_before = fs::read(&config).unwrap();
+            assert!(has_legacy_php_path(&storage, &previous).unwrap());
+            let mut next = previous.clone();
+            next.revision += 1;
+            let launcher = storage.root.join("config/cli/php/php.cmd");
+            assert!(
+                transact(
+                    &fake,
+                    &storage,
+                    &previous,
+                    &mut next,
+                    vec![(storage.root.join("outside-config"), "bad".into())],
+                    Some(ServiceId::Php),
+                )
+                .is_err()
+            );
+            assert_eq!(fake.read().unwrap().unwrap().text, original);
+            assert!(!launcher.exists());
+            assert!(has_legacy_php_path(&storage, &previous).unwrap());
+            update(&fake, &storage, &previous, &mut next);
+            let value = fake.read().unwrap().unwrap().text;
+            assert!(contains(
+                &value,
+                &launcher.parent().unwrap().to_string_lossy()
+            ));
+            assert_eq!(contains(&value, &native.to_string_lossy()), !owned);
+            assert!(value.ends_with("C:\\External"));
+            assert!(!has_legacy_php_path(&storage, &next).unwrap());
+            assert_eq!(fs::read(&config).unwrap(), config_before);
+            let mut disabled = next.clone();
+            disabled
+                .services
+                .get_mut(&ServiceId::Php)
+                .unwrap()
+                .add_to_path = false;
+            update(&fake, &storage, &next, &mut disabled);
+            assert_eq!(
+                fake.read().unwrap().unwrap().text,
+                if owned { "C:\\External" } else { &original }
+            );
+        }
     }
 
     #[test]

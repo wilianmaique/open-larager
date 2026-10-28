@@ -5,6 +5,7 @@ pub mod error;
 pub mod hosts;
 pub mod installer;
 pub mod model;
+pub mod php_extensions;
 pub mod platform;
 pub mod sites;
 pub mod storage;
@@ -91,6 +92,24 @@ async fn read_config(engine: State<'_, Arc<Engine>>, id: ServiceId) -> Result<St
 #[tauri::command]
 async fn save_config(engine: State<'_, Arc<Engine>>, id: ServiceId, content: String) -> Result<()> {
     engine.save_config(id, content).await
+}
+#[tauri::command]
+async fn get_php_extensions(engine: State<'_, Arc<Engine>>) -> Result<php_extensions::Inventory> {
+    engine.php_extensions().await
+}
+#[tauri::command]
+async fn set_php_extension(
+    engine: State<'_, Arc<Engine>>,
+    app: tauri::AppHandle,
+    version: String,
+    extension: String,
+    enabled: bool,
+) -> Result<php_extensions::Inventory> {
+    engine
+        .set_php_extension(version, extension, enabled, move |progress| {
+            let _ = app.emit("install-progress", progress);
+        })
+        .await
 }
 #[tauri::command]
 async fn read_logs(engine: State<'_, Arc<Engine>>, id: ServiceId) -> Result<String> {
@@ -232,6 +251,8 @@ pub fn run() {
             remove_package,
             read_config,
             save_config,
+            get_php_extensions,
+            set_php_extension,
             read_logs,
             reveal_credentials,
             save_preferences,

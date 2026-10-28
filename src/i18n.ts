@@ -1,5 +1,37 @@
 import type { Locale } from './types';
 export const en = {
+  validating: 'Validating PHP extensions',
+  reloading: 'Reloading PHP',
+  restoring: 'Restoring the previous PHP configuration',
+  extensions: 'Extensions',
+  extensionsHelp:
+    'Enable extensions included with PHP or install verified PECL builds. Compatibility is selected automatically for the active PHP version.',
+  extensionsNeedPhp: 'Install PHP first',
+  extensionsNeedPhpHelp: 'Select an active PHP version to manage its extensions.',
+  extensionsRefresh: 'Refresh extensions',
+  extensionsAutomatic: 'Automatic compatibility',
+  extensionsReloadHelp:
+    'Running PHP reloads automatically after validation. Stopped PHP stays stopped. Each version keeps its settings. PHP registered in PATH automatically uses the active version’s php.ini and extensions on each command.',
+  extensionsLoading: 'Checking PHP and its extensions…',
+  extensionsDiagnostics:
+    'PHP reported startup problems. Disable the affected extension or correct php.ini before enabling another one.',
+  extensionsSearch: 'Search extensions',
+  extensionsFilter: 'Filter extensions',
+  extensionsAll: 'All extensions',
+  extensionsEnabled: 'Enabled',
+  extensionsAvailable: 'Available to enable',
+  extensionsNoResults: 'No extensions match this filter.',
+  extensionBuiltin: 'Built into PHP',
+  extensionBundled: 'Included with this PHP build',
+  extensionPecl: 'PECL · verified SHA-256',
+  extensionDependencies: 'Required: {names}. Included dependencies are enabled together.',
+  extensionUnavailable: 'No verified build available for PHP {version}.',
+  extensionApplying: 'Applying…',
+  extensionEnable: 'Enable',
+  extensionDisable: 'Disable',
+  extensionInstall: 'Install & enable',
+  extensionEnabled: '{name} enabled. PHP configuration applied.',
+  extensionDisabled: '{name} disabled. PHP configuration applied.',
   dependencyMissing: 'Dependency required',
   dependencyPathInUse:
     'Disable the user PATH registration for {names} before removing this last runtime version.',
@@ -22,7 +54,7 @@ export const en = {
     'PATH will use {name} {version}. Installing another version keeps the active version; change Active version to switch. Optional, for this Windows user only.',
   userPathTitle: 'Terminal · user PATH',
   userPathHelp:
-    'One entry follows this service’s active version. Switching versions replaces the entry; disabling removes only entries added by this app. Other installations are preserved.',
+    'Registered commands follow this service’s active version. Disabling removes only PATH entries added by this app. Other installations are preserved.',
   pathFollowActive: 'Register active {name} in user PATH',
   pathVersion: 'Active version for PATH: {name} {version}',
   pathUpdated: 'User PATH updated. Reopen your terminal.',
@@ -36,7 +68,7 @@ export const en = {
     'The selected directory is missing from your user PATH. Register it again to repair the entry.',
   pathRepair: 'Repair PATH entry',
   pathPhpConfig:
-    'PHP in the terminal uses its standard php.ini lookup. To also use the app’s managed configuration, run:',
+    'The php command automatically loads the active version’s php.ini and extensions. Saved version and extension changes apply on the next command. Configuration file:',
   pathRemoveFallback: 'PATH will follow the remaining active version: {name} {version}.',
   pathRemoveLast: 'The app’s PATH entry will also be removed when the last version is uninstalled.',
   nginxConfigHelp:
@@ -294,6 +326,38 @@ export type Key = keyof typeof en;
 type Dictionary = Record<Key, string>;
 
 const pt: Dictionary = {
+  validating: 'Validando extensões do PHP',
+  reloading: 'Recarregando PHP',
+  restoring: 'Restaurando a configuração anterior do PHP',
+  extensions: 'Extensões',
+  extensionsHelp:
+    'Ative extensões incluídas no PHP ou instale builds verificados do PECL. A compatibilidade é escolhida automaticamente para a versão ativa do PHP.',
+  extensionsNeedPhp: 'Instale o PHP primeiro',
+  extensionsNeedPhpHelp: 'Selecione uma versão ativa do PHP para gerenciar suas extensões.',
+  extensionsRefresh: 'Atualizar extensões',
+  extensionsAutomatic: 'Compatibilidade automática',
+  extensionsReloadHelp:
+    'O PHP em execução recarrega automaticamente após a validação. Se estiver parado, continua parado. Cada versão mantém suas configurações. O PHP registrado no PATH usa automaticamente o php.ini e as extensões da versão ativa a cada comando.',
+  extensionsLoading: 'Verificando o PHP e suas extensões…',
+  extensionsDiagnostics:
+    'O PHP relatou problemas na inicialização. Desative a extensão afetada ou corrija o php.ini antes de ativar outra.',
+  extensionsSearch: 'Buscar extensões',
+  extensionsFilter: 'Filtrar extensões',
+  extensionsAll: 'Todas as extensões',
+  extensionsEnabled: 'Ativadas',
+  extensionsAvailable: 'Disponíveis para ativar',
+  extensionsNoResults: 'Nenhuma extensão corresponde ao filtro.',
+  extensionBuiltin: 'Integrada ao PHP',
+  extensionBundled: 'Incluída nesta distribuição do PHP',
+  extensionPecl: 'PECL · SHA-256 verificado',
+  extensionDependencies: 'Requer: {names}. Dependências incluídas são ativadas juntas.',
+  extensionUnavailable: 'Nenhum build verificado disponível para PHP {version}.',
+  extensionApplying: 'Aplicando…',
+  extensionEnable: 'Ativar',
+  extensionDisable: 'Desativar',
+  extensionInstall: 'Instalar e ativar',
+  extensionEnabled: '{name} ativada. Configuração do PHP aplicada.',
+  extensionDisabled: '{name} desativada. Configuração do PHP aplicada.',
   dependencyMissing: 'Requer dependência',
   dependencyPathInUse:
     'Desative o registro de {names} no PATH do usuário antes de remover esta última versão do runtime.',
@@ -316,7 +380,7 @@ const pt: Dictionary = {
     'O PATH usará {name} {version}. Instalar outra versão mantém a versão ativa; altere Versão ativa para trocar. Opcional, apenas para este usuário do Windows.',
   userPathTitle: 'Terminal · PATH do usuário',
   userPathHelp:
-    'Uma entrada acompanha a versão ativa deste serviço. Ao trocar a versão, a entrada é substituída; ao desativar, apenas entradas adicionadas pelo app são removidas. Outras instalações são preservadas.',
+    'Os comandos registrados acompanham a versão ativa deste serviço. Ao desativar, apenas entradas do PATH adicionadas pelo app são removidas. Outras instalações são preservadas.',
   pathFollowActive: 'Registrar {name} ativo no PATH do usuário',
   pathVersion: 'Versão ativa para o PATH: {name} {version}',
   pathUpdated: 'PATH do usuário atualizado. Reabra o terminal.',
@@ -330,7 +394,7 @@ const pt: Dictionary = {
     'A pasta selecionada não está no PATH do usuário. Registre novamente para reparar a entrada.',
   pathRepair: 'Reparar entrada no PATH',
   pathPhpConfig:
-    'O PHP no terminal usa a busca padrão de php.ini. Para usar também a configuração gerenciada pelo app, execute:',
+    'O comando php carrega automaticamente o php.ini e as extensões da versão ativa. Alterações salvas de versão e extensões valem no próximo comando. Arquivo de configuração:',
   pathRemoveFallback: 'O PATH acompanhará a versão ativa restante: {name} {version}.',
   pathRemoveLast: 'A entrada do app no PATH também será removida ao desinstalar a última versão.',
   nginxConfigHelp:
@@ -583,6 +647,38 @@ const pt: Dictionary = {
 };
 
 const es: Dictionary = {
+  validating: 'Validando extensiones de PHP',
+  reloading: 'Recargando PHP',
+  restoring: 'Restaurando la configuración anterior de PHP',
+  extensions: 'Extensiones',
+  extensionsHelp:
+    'Activa extensiones incluidas en PHP o instala compilaciones verificadas de PECL. La compatibilidad se elige automáticamente para la versión activa de PHP.',
+  extensionsNeedPhp: 'Instala PHP primero',
+  extensionsNeedPhpHelp: 'Selecciona una versión activa de PHP para gestionar sus extensiones.',
+  extensionsRefresh: 'Actualizar extensiones',
+  extensionsAutomatic: 'Compatibilidad automática',
+  extensionsReloadHelp:
+    'PHP en ejecución se recarga automáticamente después de validar. Si está detenido, sigue detenido. Cada versión conserva su configuración. PHP registrado en PATH usa automáticamente el php.ini y las extensiones de la versión activa en cada comando.',
+  extensionsLoading: 'Comprobando PHP y sus extensiones…',
+  extensionsDiagnostics:
+    'PHP informó problemas de inicio. Desactiva la extensión afectada o corrige php.ini antes de activar otra.',
+  extensionsSearch: 'Buscar extensiones',
+  extensionsFilter: 'Filtrar extensiones',
+  extensionsAll: 'Todas las extensiones',
+  extensionsEnabled: 'Activadas',
+  extensionsAvailable: 'Disponibles para activar',
+  extensionsNoResults: 'Ninguna extensión coincide con el filtro.',
+  extensionBuiltin: 'Integrada en PHP',
+  extensionBundled: 'Incluida con esta compilación de PHP',
+  extensionPecl: 'PECL · SHA-256 verificado',
+  extensionDependencies: 'Requiere: {names}. Las dependencias incluidas se activan juntas.',
+  extensionUnavailable: 'No hay una compilación verificada para PHP {version}.',
+  extensionApplying: 'Aplicando…',
+  extensionEnable: 'Activar',
+  extensionDisable: 'Desactivar',
+  extensionInstall: 'Instalar y activar',
+  extensionEnabled: '{name} activada. Configuración de PHP aplicada.',
+  extensionDisabled: '{name} desactivada. Configuración de PHP aplicada.',
   dependencyMissing: 'Requiere dependencia',
   dependencyPathInUse:
     'Desactiva el registro de {names} en el PATH del usuario antes de eliminar esta última versión del runtime.',
@@ -605,7 +701,7 @@ const es: Dictionary = {
     'PATH usará {name} {version}. Instalar otra versión mantiene la activa; cambia Versión activa para sustituirla. Opcional, solo para este usuario de Windows.',
   userPathTitle: 'Terminal · PATH del usuario',
   userPathHelp:
-    'Una entrada sigue la versión activa del servicio. Cambiar de versión sustituye la entrada; desactivar elimina solo las entradas añadidas por la app. Se conservan otras instalaciones.',
+    'Los comandos registrados siguen la versión activa del servicio. Desactivar elimina solo las entradas del PATH añadidas por la app. Se conservan otras instalaciones.',
   pathFollowActive: 'Registrar {name} activo en el PATH del usuario',
   pathVersion: 'Versión activa para PATH: {name} {version}',
   pathUpdated: 'PATH del usuario actualizado. Abre de nuevo el terminal.',
@@ -618,7 +714,7 @@ const es: Dictionary = {
   pathMissing: 'La carpeta seleccionada falta en tu PATH. Regístrala de nuevo para repararla.',
   pathRepair: 'Reparar entrada de PATH',
   pathPhpConfig:
-    'PHP en el terminal utiliza su búsqueda habitual de php.ini. Para usar la configuración de la app, ejecuta:',
+    'El comando php carga automáticamente el php.ini y las extensiones de la versión activa. Los cambios guardados de versión y extensiones se aplican en el siguiente comando. Archivo de configuración:',
   pathRemoveFallback: 'PATH seguirá la versión activa restante: {name} {version}.',
   pathRemoveLast:
     'La entrada de PATH de la app también se eliminará al desinstalar la última versión.',
@@ -874,6 +970,37 @@ const es: Dictionary = {
 };
 
 const zh: Dictionary = {
+  validating: '正在验证 PHP 扩展',
+  reloading: '正在重新加载 PHP',
+  restoring: '正在恢复之前的 PHP 配置',
+  extensions: '扩展',
+  extensionsHelp:
+    '启用 PHP 随附的扩展或安装经过验证的 PECL 构建。系统会自动匹配当前 PHP 版本的兼容构建。',
+  extensionsNeedPhp: '请先安装 PHP',
+  extensionsNeedPhpHelp: '选择活动 PHP 版本后即可管理扩展。',
+  extensionsRefresh: '刷新扩展',
+  extensionsAutomatic: '自动匹配兼容性',
+  extensionsReloadHelp:
+    '验证后会自动重新加载正在运行的 PHP。已停止的 PHP 将保持停止。每个版本保留各自的设置。在 PATH 中注册的 PHP 会在每次运行命令时自动使用当前版本的 php.ini 和扩展。',
+  extensionsLoading: '正在检查 PHP 及其扩展…',
+  extensionsDiagnostics: 'PHP 报告了启动问题。请先禁用受影响的扩展或修复 php.ini，再启用其他扩展。',
+  extensionsSearch: '搜索扩展',
+  extensionsFilter: '筛选扩展',
+  extensionsAll: '所有扩展',
+  extensionsEnabled: '已启用',
+  extensionsAvailable: '可启用',
+  extensionsNoResults: '没有符合筛选条件的扩展。',
+  extensionBuiltin: 'PHP 内置',
+  extensionBundled: '随此 PHP 构建提供',
+  extensionPecl: 'PECL · 已验证 SHA-256',
+  extensionDependencies: '依赖：{names}。随附的依赖项将一同启用。',
+  extensionUnavailable: '没有适用于 PHP {version} 的已验证构建。',
+  extensionApplying: '正在应用…',
+  extensionEnable: '启用',
+  extensionDisable: '禁用',
+  extensionInstall: '安装并启用',
+  extensionEnabled: '{name} 已启用。PHP 配置已应用。',
+  extensionDisabled: '{name} 已禁用。PHP 配置已应用。',
   dependencyMissing: '需要依赖项',
   dependencyPathInUse: '删除最后一个运行时版本前，请先取消 {names} 的用户 PATH 注册。',
   ready: '就绪',
@@ -893,7 +1020,7 @@ const zh: Dictionary = {
     'PATH 将使用 {name} {version}。安装其他版本不会更改当前版本；请通过“当前版本”切换。可选，仅适用于当前 Windows 用户。',
   userPathTitle: '终端 · 用户 PATH',
   userPathHelp:
-    '仅用一项跟随此服务的当前版本。切换版本时替换该项；禁用时仅移除应用添加的项。保留其他安装的配置。',
+    '已注册的命令跟随此服务的当前版本。禁用时仅移除应用添加的 PATH 项。保留其他安装的配置。',
   pathFollowActive: '在用户 PATH 中注册当前 {name}',
   pathVersion: 'PATH 对应的当前版本：{name} {version}',
   pathUpdated: '用户 PATH 已更新。请重新打开终端。',
@@ -903,7 +1030,8 @@ const zh: Dictionary = {
   pathExternal: '此项原本就存在于 PATH 中。关闭选项时会保留原有项。',
   pathMissing: '用户 PATH 中缺少所选目录。请重新注册以修复。',
   pathRepair: '修复 PATH 项',
-  pathPhpConfig: '终端中的 PHP 使用标准 php.ini 搜索规则。若要使用应用管理的配置，请运行：',
+  pathPhpConfig:
+    'php 命令会自动加载当前版本的 php.ini 和扩展。保存的版本和扩展更改将在下次运行命令时生效。配置文件：',
   pathRemoveFallback: 'PATH 将使用剩余的当前版本：{name} {version}。',
   pathRemoveLast: '卸载最后一个版本时，也会移除应用添加的 PATH 项。',
   nginxConfigHelp:
@@ -1142,6 +1270,38 @@ const zh: Dictionary = {
 };
 
 const hi: Dictionary = {
+  validating: 'PHP एक्सटेंशन की जाँच हो रही है',
+  reloading: 'PHP रीलोड हो रहा है',
+  restoring: 'पिछला PHP कॉन्फ़िगरेशन बहाल हो रहा है',
+  extensions: 'एक्सटेंशन',
+  extensionsHelp:
+    'PHP में शामिल एक्सटेंशन चालू करें या सत्यापित PECL बिल्ड इंस्टॉल करें। सक्रिय PHP संस्करण के लिए संगत बिल्ड अपने आप चुना जाता है।',
+  extensionsNeedPhp: 'पहले PHP इंस्टॉल करें',
+  extensionsNeedPhpHelp: 'एक्सटेंशन प्रबंधित करने के लिए सक्रिय PHP संस्करण चुनें।',
+  extensionsRefresh: 'एक्सटेंशन रीफ़्रेश करें',
+  extensionsAutomatic: 'स्वचालित संगतता',
+  extensionsReloadHelp:
+    'जाँच के बाद चल रहा PHP अपने आप रीलोड होता है। बंद PHP बंद रहता है। हर संस्करण की सेटिंग अलग रहती है। PATH में पंजीकृत PHP हर कमांड पर सक्रिय संस्करण की php.ini और एक्सटेंशन अपने आप इस्तेमाल करता है।',
+  extensionsLoading: 'PHP और उसके एक्सटेंशन की जाँच हो रही है…',
+  extensionsDiagnostics:
+    'PHP ने स्टार्टअप समस्याएँ बताई हैं। दूसरा एक्सटेंशन चालू करने से पहले प्रभावित एक्सटेंशन बंद करें या php.ini सुधारें।',
+  extensionsSearch: 'एक्सटेंशन खोजें',
+  extensionsFilter: 'एक्सटेंशन फ़िल्टर करें',
+  extensionsAll: 'सभी एक्सटेंशन',
+  extensionsEnabled: 'चालू',
+  extensionsAvailable: 'चालू करने के लिए उपलब्ध',
+  extensionsNoResults: 'इस फ़िल्टर से कोई एक्सटेंशन नहीं मिला।',
+  extensionBuiltin: 'PHP में अंतर्निहित',
+  extensionBundled: 'इस PHP बिल्ड में शामिल',
+  extensionPecl: 'PECL · सत्यापित SHA-256',
+  extensionDependencies: 'आवश्यक: {names}। शामिल निर्भरताएँ साथ चालू होती हैं।',
+  extensionUnavailable: 'PHP {version} के लिए कोई सत्यापित बिल्ड उपलब्ध नहीं है।',
+  extensionApplying: 'लागू हो रहा है…',
+  extensionEnable: 'चालू करें',
+  extensionDisable: 'बंद करें',
+  extensionInstall: 'इंस्टॉल करके चालू करें',
+  extensionEnabled: '{name} चालू है। PHP कॉन्फ़िगरेशन लागू हुआ।',
+  extensionDisabled: '{name} बंद है। PHP कॉन्फ़िगरेशन लागू हुआ।',
   dependencyMissing: 'डिपेंडेंसी आवश्यक',
   dependencyPathInUse:
     'रनटाइम का यह अंतिम संस्करण हटाने से पहले {names} का उपयोगकर्ता PATH पंजीकरण बंद करें।',
@@ -1164,7 +1324,7 @@ const hi: Dictionary = {
     'PATH में {name} {version} इस्तेमाल होगा। दूसरा संस्करण इंस्टॉल करने से सक्रिय संस्करण नहीं बदलेगा; बदलने के लिए सक्रिय संस्करण चुनें। वैकल्पिक, केवल इस Windows उपयोगकर्ता के लिए।',
   userPathTitle: 'टर्मिनल · उपयोगकर्ता PATH',
   userPathHelp:
-    'एक प्रविष्टि इस सेवा के सक्रिय संस्करण का अनुसरण करती है। संस्करण बदलने पर प्रविष्टि बदलती है; बंद करने पर केवल ऐप की जोड़ी प्रविष्टियाँ हटती हैं। अन्य इंस्टॉलेशन सुरक्षित रहते हैं।',
+    'पंजीकृत कमांड इस सेवा के सक्रिय संस्करण का अनुसरण करते हैं। बंद करने पर केवल ऐप की जोड़ी PATH प्रविष्टियाँ हटती हैं। अन्य इंस्टॉलेशन सुरक्षित रहते हैं।',
   pathFollowActive: 'सक्रिय {name} को उपयोगकर्ता PATH में जोड़ें',
   pathVersion: 'PATH के लिए सक्रिय संस्करण: {name} {version}',
   pathUpdated: 'उपयोगकर्ता PATH अपडेट हुआ। टर्मिनल फिर खोलें।',
@@ -1177,7 +1337,7 @@ const hi: Dictionary = {
   pathMissing: 'चुना फ़ोल्डर उपयोगकर्ता PATH में नहीं है। सुधारने के लिए फिर जोड़ें।',
   pathRepair: 'PATH प्रविष्टि सुधारें',
   pathPhpConfig:
-    'टर्मिनल में PHP सामान्य php.ini खोज का इस्तेमाल करता है। ऐप की कॉन्फ़िगरेशन भी इस्तेमाल करने के लिए चलाएँ:',
+    'php कमांड सक्रिय संस्करण की php.ini और एक्सटेंशन अपने आप लोड करता है। संस्करण और एक्सटेंशन में सहेजे गए बदलाव अगली कमांड पर लागू होते हैं। कॉन्फ़िगरेशन फ़ाइल:',
   pathRemoveFallback: 'PATH बचे सक्रिय संस्करण का अनुसरण करेगा: {name} {version}।',
   pathRemoveLast: 'अंतिम संस्करण हटाने पर ऐप की PATH प्रविष्टि भी हटेगी।',
   nginxConfigHelp:
