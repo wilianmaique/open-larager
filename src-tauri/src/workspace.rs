@@ -3,6 +3,7 @@ use crate::{
     error::{Result, invalid},
     file_diagnostics::{FileFailure, FileOperation as Op, FileResultExt},
     model::{ServiceId, Settings},
+    move_progress::{MovePhase, MoveProgress, MoveReporter},
     platform,
     storage::{Storage, atomic_json, atomic_write, cygwin_path, slash},
     user_path,
@@ -13,7 +14,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     fs::{self, File, OpenOptions},
-    io::Read,
+    io::{Read, Write},
     path::{Component, Path, PathBuf},
     sync::Mutex,
 };
@@ -139,6 +140,14 @@ impl Workspace {
     }
 
     pub async fn relocate(&self, token: String) -> Result<MoveStatus> {
+        self.relocate_with_progress(token, &mut |_| {}).await
+    }
+
+    pub async fn relocate_with_progress(
+        &self,
+        token: String,
+        report: &mut (dyn FnMut(MoveProgress) + Send),
+    ) -> Result<MoveStatus> {
         let selected = self
             .selection
             .lock()
@@ -160,8 +169,10 @@ impl Workspace {
         let destination =
             validate_destination(&current.storage.root, &selected.path, &self.preference)?;
         let source = current.storage.root.clone();
+        let mut progress = MoveReporter::new(report);
         let mut owned = CopyTarget::new(destination)?;
-        let manifest = owned.copy_from(&source)?;
+        let manifest = owned.copy_from(&source, &mut progress)?;
+        progress.phase(MovePhase::Switching);
         let storage = owned.storage.as_ref().unwrap();
         let mut settings = current.settings.read().await.clone();
         rebase(storage, &source, &mut settings, &mut owned.files)?;
@@ -190,7 +201,12 @@ impl Workspace {
             .map_err(|_| invalid("Environment settings unavailable"))? = location;
         let previous = std::mem::replace(&mut *current, next);
         drop(previous); // release the source instance.lock before cleanup
-        self.finish(&mut current)
+        progress.phase(MovePhase::Cleaning);
+        let status = self.finish(&mut current, &mut |bytes| progress.processed(bytes))?;
+        if status.cleanup_source.is_none() {
+            progress.phase(MovePhase::Complete);
+        }
+        Ok(status)
     }
 
     pub async fn finish_pending(&self) -> Result<MoveStatus> {
@@ -202,10 +218,10 @@ impl Workspace {
             .try_write()
             .map_err(|_| invalid("Another workspace operation is in progress"))?;
         current.ensure_stopped().await?;
-        self.finish(&mut current)
+        self.finish(&mut current, &mut |_| {})
     }
 
-    fn finish(&self, current: &mut Engine) -> Result<MoveStatus> {
+    fn finish(&self, current: &mut Engine, processed: &mut dyn FnMut(u64)) -> Result<MoveStatus> {
         let mut location = self
             .location
             .lock()
@@ -215,7 +231,7 @@ impl Workspace {
         };
         let result: Result<()> = (|| {
             user_path::relocate(&current.storage, current.settings.get_mut())?;
-            clean_source(&cleanup, &current.storage.root)?;
+            clean_source(&cleanup, &current.storage.root, processed)?;
             let complete = Location {
                 root: location.root.clone(),
                 cleanup: None,
@@ -331,6 +347,10 @@ fn safe_join(root: &Path, relative: &Path) -> Result<PathBuf> {
 }
 
 fn digest(path: &Path) -> Result<String> {
+    digest_with_progress(path, &mut |_| {})
+}
+
+fn digest_with_progress(path: &Path, processed: &mut dyn FnMut(u64)) -> Result<String> {
     regular(path)?;
     let mut input = File::open(path).at(Op::Read, path)?;
     let mut hash = Sha256::new();
@@ -341,6 +361,7 @@ fn digest(path: &Path) -> Result<String> {
             break;
         }
         hash.update(&buffer[..count]);
+        processed(count as u64);
     }
     Ok(hex::encode(hash.finalize()))
 }
@@ -351,6 +372,48 @@ struct CopyTarget {
     files: Vec<Stamp>,
     directories: Vec<PathBuf>,
     committed: bool,
+}
+
+#[derive(Default)]
+struct CopyPlan {
+    files: Vec<(PathBuf, u64)>,
+    directories: Vec<PathBuf>,
+}
+
+impl CopyPlan {
+    fn scan(
+        &mut self,
+        source: &Path,
+        relative: &Path,
+        progress: &mut MoveReporter<'_>,
+    ) -> Result<()> {
+        let directory = safe_join_directory(source, relative)?;
+        for entry in fs::read_dir(&directory).at(Op::Inspect, &directory)? {
+            let relative = relative.join(entry.at(Op::Inspect, &directory)?.file_name());
+            if relative == Path::new("instance.lock") {
+                continue;
+            }
+            let path = safe_join(source, &relative)?;
+            let metadata = regular(&path)?;
+            if metadata.is_dir() {
+                self.directories.push(relative.clone());
+                self.scan(source, &relative, progress)?;
+            } else {
+                self.files.push((relative, metadata.len()));
+                progress.found_file(metadata.len());
+            }
+        }
+        Ok(())
+    }
+}
+
+fn safe_join_directory(source: &Path, relative: &Path) -> Result<PathBuf> {
+    if relative.as_os_str().is_empty() {
+        regular(source)?;
+        Ok(source.to_path_buf())
+    } else {
+        safe_join(source, relative)
+    }
 }
 
 impl CopyTarget {
@@ -365,74 +428,76 @@ impl CopyTarget {
         })
     }
 
-    fn copy_from(&mut self, source: &Path) -> Result<Manifest> {
+    fn copy_from(&mut self, source: &Path, progress: &mut MoveReporter<'_>) -> Result<Manifest> {
+        let mut plan = CopyPlan::default();
+        plan.scan(source, Path::new(""), progress)?;
+        progress.start_copy();
         let mut manifest = Manifest::default();
-        self.copy_directory(source, Path::new(""), &mut manifest)?;
-        Ok(manifest)
-    }
-
-    fn copy_directory(
-        &mut self,
-        source: &Path,
-        relative: &Path,
-        manifest: &mut Manifest,
-    ) -> Result<()> {
-        regular(&source.join(relative))?;
-        let directory = source.join(relative);
-        for entry in fs::read_dir(&directory).at(Op::Inspect, &directory)? {
-            let relative = relative.join(entry.at(Op::Inspect, &directory)?.file_name());
-            if relative == Path::new("instance.lock") {
-                continue;
-            }
+        for relative in plan.directories {
+            let to = safe_join(&self.root, &relative)?;
+            fs::create_dir_all(&to).at(Op::Create, &to)?;
+            self.directories.push(relative.clone());
+            manifest.directories.push(relative);
+        }
+        for (relative, size) in plan.files {
             let from = safe_join(source, &relative)?;
             let to = safe_join(&self.root, &relative)?;
-            if regular(&from)?.is_dir() {
-                fs::create_dir_all(&to).at(Op::Create, &to)?;
-                self.directories.push(relative.clone());
-                manifest.directories.push(relative.clone());
-                self.copy_directory(source, &relative, manifest)?;
-            } else {
-                let mut input = File::open(&from).at(Op::Read, &from)?;
-                let mut output = OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .open(&to)
-                    .at(Op::Create, &to)?;
-                let copied: std::io::Result<()> = (|| {
-                    std::io::copy(&mut input, &mut output)?;
-                    output.sync_all()?;
-                    Ok(())
-                })();
-                drop(output);
-                drop(input);
-                if let Err(error) = copied {
-                    if let Ok(sha256) = digest(&to) {
-                        self.files.push(Stamp {
-                            path: relative.clone(),
-                            sha256,
-                        });
-                    }
-                    return Err(crate::error::Error::FileOperation(Box::new(
-                        FileFailure::capture(Op::Copy, &from, Some(&to), error),
-                    )));
-                }
-                let sha256 = digest(&to)?;
-                self.files.push(Stamp {
-                    path: relative.clone(),
-                    sha256: sha256.clone(),
-                });
-                if sha256 != digest(&from)? {
-                    return Err(invalid(
-                        "An environment file changed while copying. Stop external tools and retry.",
-                    ));
-                }
-                manifest.files.push(Stamp {
-                    path: relative,
-                    sha256,
-                });
+            if regular(&from)?.len() != size {
+                return Err(invalid(
+                    "An environment file changed while copying. Stop external tools and retry.",
+                ));
             }
+            let mut input = File::open(&from).at(Op::Read, &from)?;
+            let mut output = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&to)
+                .at(Op::Create, &to)?;
+            let copied: std::io::Result<()> = (|| {
+                let mut buffer = [0; 128 * 1024];
+                loop {
+                    let count = input.read(&mut buffer)?;
+                    if count == 0 {
+                        break;
+                    }
+                    output.write_all(&buffer[..count])?;
+                    progress.copied(count as u64);
+                }
+                output.sync_all()?;
+                Ok(())
+            })();
+            drop(output);
+            drop(input);
+            if let Err(error) = copied {
+                if let Ok(sha256) = digest(&to) {
+                    self.files.push(Stamp {
+                        path: relative.clone(),
+                        sha256,
+                    });
+                }
+                return Err(crate::error::Error::FileOperation(Box::new(
+                    FileFailure::capture(Op::Copy, &from, Some(&to), error),
+                )));
+            }
+            let sha256 = digest_with_progress(&to, &mut |bytes| progress.processed(bytes))?;
+            self.files.push(Stamp {
+                path: relative.clone(),
+                sha256: sha256.clone(),
+            });
+            if regular(&from)?.len() != size
+                || sha256 != digest_with_progress(&from, &mut |bytes| progress.processed(bytes))?
+            {
+                return Err(invalid(
+                    "An environment file changed while copying. Stop external tools and retry.",
+                ));
+            }
+            manifest.files.push(Stamp {
+                path: relative,
+                sha256,
+            });
+            progress.copied_file();
         }
-        Ok(())
+        Ok(manifest)
     }
 }
 
@@ -592,7 +657,11 @@ fn rebase(
     Ok(())
 }
 
-fn clean_source(cleanup: &Cleanup, destination: &Path) -> Result<()> {
+fn clean_source(
+    cleanup: &Cleanup,
+    destination: &Path,
+    processed: &mut dyn FnMut(u64),
+) -> Result<()> {
     let source = &cleanup.source;
     if !source.exists() {
         return Ok(());
@@ -618,7 +687,7 @@ fn clean_source(cleanup: &Cleanup, destination: &Path) -> Result<()> {
                 "A destination file is missing; the original environment was preserved",
             ));
         }
-        if path.exists() && digest(&path)? != file.sha256 {
+        if path.exists() && digest_with_progress(&path, processed)? != file.sha256 {
             return Err(invalid(format!(
                 "The original file changed and was preserved: {}",
                 path.display()
@@ -628,7 +697,7 @@ fn clean_source(cleanup: &Cleanup, destination: &Path) -> Result<()> {
     for file in &cleanup.manifest.files {
         let path = safe_join(source, &file.path)?;
         if path.exists() {
-            if digest(&path)? != file.sha256 {
+            if digest_with_progress(&path, processed)? != file.sha256 {
                 return Err(invalid(format!(
                     "The original file changed and was preserved: {}",
                     path.display()
@@ -682,6 +751,88 @@ mod tests {
         let path = root.join(path);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, bytes).unwrap();
+    }
+
+    #[tokio::test]
+    async fn reports_measured_bytes_through_verification_and_source_cleanup() {
+        let (_temp, workspace, source, target, _preference) = fixture();
+        let settings_bytes = fs::metadata(source.join("settings.json")).unwrap().len();
+        let data = vec![73; 1024 * 1024 + 17];
+        write(&source, "data/database.bin", &data);
+        write(&source, "projects/empty.txt", b"");
+        let selected = workspace
+            .select(Some(target.clone()))
+            .await
+            .unwrap()
+            .unwrap();
+        let mut updates = Vec::new();
+        let status = workspace
+            .relocate_with_progress(selected.token, &mut |progress| updates.push(progress))
+            .await
+            .unwrap();
+        assert!(status.cleanup_source.is_none());
+        assert_eq!(updates.first().unwrap().phase, MovePhase::Scanning);
+        let copying = updates
+            .iter()
+            .find(|p| p.phase == MovePhase::Copying)
+            .unwrap();
+        let total = settings_bytes + data.len() as u64;
+        assert_eq!(copying.total_bytes, total);
+        assert_eq!(copying.total_files, 3);
+        assert_eq!(copying.copied_bytes, 0);
+        let switching = updates
+            .iter()
+            .find(|p| p.phase == MovePhase::Switching)
+            .unwrap();
+        assert_eq!(switching.copied_bytes, total);
+        assert_eq!(switching.copied_files, 3);
+        assert_eq!(switching.processed_bytes, total * 3);
+        assert!(updates.iter().any(|p| p.phase == MovePhase::Cleaning));
+        let complete = updates.last().unwrap();
+        assert_eq!(complete.phase, MovePhase::Complete);
+        assert_eq!(complete.processed_bytes, total * 5);
+        assert_eq!(complete.total_processing_bytes, total * 5);
+        assert!(
+            updates
+                .windows(2)
+                .all(|p| p[0].processed_bytes <= p[1].processed_bytes)
+        );
+        assert!(!source.exists(), "completion follows source cleanup");
+        assert_eq!(fs::read(target.join("data/database.bin")).unwrap(), data);
+        assert_eq!(
+            fs::metadata(target.join("projects/empty.txt"))
+                .unwrap()
+                .len(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_files_that_grow_after_the_size_scan_without_reporting_completion() {
+        let (_temp, workspace, source, target, _preference) = fixture();
+        write(&source, "projects/growing.bin", b"before");
+        let selected = workspace
+            .select(Some(target.clone()))
+            .await
+            .unwrap()
+            .unwrap();
+        let mut completed = false;
+        let result = workspace
+            .relocate_with_progress(selected.token, &mut |progress| {
+                if progress.phase == MovePhase::Copying {
+                    write(&source, "projects/growing.bin", b"external addition");
+                }
+                completed |= progress.phase == MovePhase::Complete;
+            })
+            .await;
+        assert!(result.is_err());
+        assert!(!completed);
+        assert_eq!(
+            fs::read(source.join("projects/growing.bin")).unwrap(),
+            b"external addition"
+        );
+        assert_eq!(fs::read_dir(&target).unwrap().count(), 0);
+        assert_eq!(workspace.engine.read().await.storage.root, source);
     }
 
     #[tokio::test]
@@ -875,14 +1026,16 @@ mod tests {
         write(&source, "projects/keep.txt", b"original");
         fs::create_dir(&target).unwrap();
         let mut owned = CopyTarget::new(target.clone()).unwrap();
-        let manifest = owned.copy_from(&storage.root).unwrap();
+        let manifest = owned
+            .copy_from(&storage.root, &mut MoveReporter::new(&mut |_| {}))
+            .unwrap();
         let cleanup = Cleanup {
             source: storage.root.clone(),
             manifest,
         };
         drop(storage);
         write(&source, "projects/keep.txt", b"external edit");
-        assert!(clean_source(&cleanup, &target).is_err());
+        assert!(clean_source(&cleanup, &target, &mut |_| {}).is_err());
         assert!(
             source.join("settings.json").exists(),
             "preflight must precede deletion"
@@ -893,10 +1046,10 @@ mod tests {
         );
         write(&source, "projects/keep.txt", b"original");
         fs::remove_file(target.join("projects/keep.txt")).unwrap();
-        assert!(clean_source(&cleanup, &target).is_err());
+        assert!(clean_source(&cleanup, &target, &mut |_| {}).is_err());
         assert!(source.join("projects/keep.txt").exists());
         write(&target, "projects/keep.txt", b"original");
-        clean_source(&cleanup, &target).unwrap();
+        clean_source(&cleanup, &target, &mut |_| {}).unwrap();
         assert!(!source.exists());
         owned.committed = true;
     }
@@ -907,7 +1060,9 @@ mod tests {
         write(&source, "projects/project.txt", b"project");
         let current = workspace.engine.read().await;
         let mut owned = CopyTarget::new(target.clone()).unwrap();
-        let manifest = owned.copy_from(&current.storage.root).unwrap();
+        let manifest = owned
+            .copy_from(&current.storage.root, &mut MoveReporter::new(&mut |_| {}))
+            .unwrap();
         let location = Location {
             root: owned.storage.as_ref().unwrap().root.clone(),
             cleanup: Some(Cleanup {
@@ -958,9 +1113,15 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        let status = workspace.relocate(selected.token).await.unwrap();
+        let mut phases = Vec::new();
+        let status = workspace
+            .relocate_with_progress(selected.token, &mut |progress| phases.push(progress.phase))
+            .await
+            .unwrap();
         assert!(status.cleanup_source.is_some());
         assert!(status.cleanup_error.is_some());
+        assert_eq!(phases.last(), Some(&MovePhase::Cleaning));
+        assert!(!phases.contains(&MovePhase::Complete));
         let issue = status
             .cleanup_issue
             .as_ref()

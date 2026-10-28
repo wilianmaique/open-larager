@@ -2159,6 +2159,36 @@ progress::-webkit-progress-value {
   flex-wrap: wrap;
   gap: 8px;
 }
+.environment-move-progress {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.environment-progress-heading,
+.environment-progress-details {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.environment-progress-heading {
+  color: var(--text);
+}
+.environment-move-progress progress {
+  appearance: none;
+  background: var(--border);
+  width: 100%;
+  height: 8px;
+}
+.environment-move-progress p {
+  margin: 0;
+}
+.environment-move-progress small {
+  color: var(--faint);
+}
 .environment-move-paths {
   display: grid;
   gap: 14px;

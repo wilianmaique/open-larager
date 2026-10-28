@@ -97,6 +97,16 @@ export interface EnvironmentMove {
   cleanupError: string | null;
   cleanupIssue?: FileFailure | null;
 }
+export interface EnvironmentMoveProgress {
+  phase: 'scanning' | 'copying' | 'switching' | 'cleaning' | 'complete';
+  copiedBytes: number;
+  totalBytes: number;
+  copiedFiles: number;
+  totalFiles: number;
+  processedBytes: number;
+  totalProcessingBytes: number;
+  estimatedSecondsRemaining: number | null;
+}
 export interface FileFailure {
   kind: 'fileOperation';
   operation:

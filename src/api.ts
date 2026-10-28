@@ -1,4 +1,4 @@
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import type {
   Settings,
   Snapshot,
@@ -8,6 +8,7 @@ import type {
   PhpExtensions,
   EnvironmentFolder,
   EnvironmentMove,
+  EnvironmentMoveProgress,
 } from './types';
 import { serviceIds } from './types';
 import { defaultPorts } from './serviceRegistry';
@@ -79,6 +80,13 @@ export const phpExtensionsApi = {
 
 export const environmentApi = {
   choose: () => call<EnvironmentFolder | null>('choose_environment_folder'),
-  move: (token: string) => call<EnvironmentMove>('move_environment', { token }),
+  move: async (token: string, report: (progress: EnvironmentMoveProgress) => void) => {
+    const onProgress = new Channel<EnvironmentMoveProgress>(report);
+    try {
+      return await call<EnvironmentMove>('move_environment', { token, onProgress });
+    } finally {
+      onProgress.onmessage = () => {};
+    }
+  },
   cleanup: () => call<EnvironmentMove>('cleanup_environment'),
 };

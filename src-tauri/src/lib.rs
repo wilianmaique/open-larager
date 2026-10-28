@@ -6,6 +6,7 @@ pub mod file_diagnostics;
 pub mod hosts;
 pub mod installer;
 pub mod model;
+pub mod move_progress;
 pub mod php_extensions;
 pub mod platform;
 pub mod sites;
@@ -258,10 +259,13 @@ async fn choose_environment_folder(
 async fn move_environment(
     engine: State<'_, Arc<Workspace>>,
     token: String,
+    on_progress: tauri::ipc::Channel<move_progress::MoveProgress>,
 ) -> Result<workspace::MoveStatus> {
     let workspace = engine.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        tauri::async_runtime::block_on(workspace.relocate(token))
+        tauri::async_runtime::block_on(workspace.relocate_with_progress(token, &mut |progress| {
+            let _ = on_progress.send(progress);
+        }))
     })
     .await
     .map_err(|e| error::invalid(e.to_string()))?

@@ -14,7 +14,12 @@ import { useState } from 'react';
 import { Button, Dialog, DialogHeader } from './components';
 import { Select } from './controls';
 import { call, environmentApi, native } from './api';
-import type { EnvironmentFolder, EnvironmentMove } from './types';
+import type {
+  EnvironmentFolder,
+  EnvironmentMove,
+  EnvironmentMoveProgress as MoveProgress,
+} from './types';
+import { EnvironmentMoveProgress } from './EnvironmentMoveProgress';
 import { FileFailureDetails } from './FileFailureDetails';
 import { useApp } from './state';
 import type { Key } from './i18n';
@@ -24,6 +29,7 @@ export function Settings() {
   const { t, snapshot, preferences, busy, run, locale } = useApp();
   const [destination, setDestination] = useState<EnvironmentFolder | null>(null);
   const [moveStatus, setMoveStatus] = useState<EnvironmentMove | null>(null);
+  const [moveProgress, setMoveProgress] = useState<MoveProgress | null>(null);
   const running = snapshot.services.some((service) => service.status === 'running');
   const moveState = moveStatus ?? snapshot.environmentMove;
   const cleanup = moveState?.cleanupSource;
@@ -35,9 +41,14 @@ export function Settings() {
   const moveEnvironment = () =>
     run(async () => {
       if (!destination) return;
-      const status = await environmentApi.move(destination.token);
-      setMoveStatus(status);
-      setDestination(null);
+      setMoveProgress(null);
+      try {
+        const status = await environmentApi.move(destination.token, setMoveProgress);
+        setMoveStatus(status);
+        setDestination(null);
+      } finally {
+        setMoveProgress(null);
+      }
     }, t('environmentMoved'));
   return (
     <>
@@ -209,7 +220,7 @@ export function Settings() {
               if (!busy) setDestination(null);
             }}
           />
-          <div className="dialog-content environment-move-content" aria-busy={busy}>
+          <div className="dialog-content environment-move-content">
             <p>{t('environmentMoveConfirm')}</p>
             <div className="environment-move-paths">
               <div>
@@ -223,6 +234,7 @@ export function Settings() {
               </div>
             </div>
             <p className="field-help">{t('environmentMoveCaution')}</p>
+            {busy && <EnvironmentMoveProgress progress={moveProgress} locale={locale} t={t} />}
           </div>
           <div data-notification-host />
           <div className="dialog-actions">

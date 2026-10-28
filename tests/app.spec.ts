@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { serviceIds, type FileFailure } from '../src/types';
+import { serviceIds, type EnvironmentMoveProgress, type FileFailure } from '../src/types';
 import { defaultPorts, services } from '../src/serviceRegistry';
 import catalog from '../src-tauri/catalog/packages.json' with { type: 'json' };
 
@@ -23,6 +23,8 @@ async function mockNative(page: Page) {
       const extensionStates = new Map<string, Set<string>>();
       const extensionCalls: Record<string, unknown>[] = [];
       const environmentCalls: { command: string; args: Record<string, unknown> }[] = [];
+      const callbacks = new Map<number, (value: unknown) => void>();
+      let callbackId = 0;
       const defaults =
         'index index.php index.html;\nclient_max_body_size 64m;\nlocation / { try_files $uri $uri/ /index.php?$query_string; }\n';
       const siteConfig = (content: string | null) => ({
@@ -78,11 +80,15 @@ async function mockNative(page: Page) {
         __pendingEnvironmentCleanup: false,
         __environmentFileFailure: null,
         __cleanupFileFailure: null,
+        __holdEnvironmentMove: false,
         isTauri: true,
         __TAURI_EVENT_PLUGIN_INTERNALS__: { unregisterListener: () => {} },
         __TAURI_INTERNALS__: {
-          transformCallback: () => 1,
-          unregisterCallback: () => {},
+          transformCallback: (callback: (value: unknown) => void) => {
+            callbacks.set(++callbackId, callback);
+            return callbackId;
+          },
+          unregisterCallback: (id: number) => callbacks.delete(id),
           invoke: async (command: string, args: Record<string, unknown>) => {
             const id = args?.id as string;
             const service = state.settings.services[id];
@@ -111,19 +117,34 @@ async function mockNative(page: Page) {
                   };
             }
             if (command === 'move_environment') {
-              environmentCalls.push({ command, args });
-              if (Reflect.get(window, '__environmentFileFailure'))
-                throw structuredClone(Reflect.get(window, '__environmentFileFailure'));
-              if (Reflect.get(window, '__failEnvironmentMove'))
-                throw new Error('Copy failed. Original environment preserved.');
-              const source = state.root;
-              state.root = 'D:\\Larager novo';
-              state.environmentMove = {
-                cleanupSource: Reflect.get(window, '__pendingEnvironmentCleanup') ? source : null,
-                cleanupError: null,
-                cleanupIssue: Reflect.get(window, '__cleanupFileFailure') ?? null,
-              };
-              return structuredClone(state.environmentMove);
+              environmentCalls.push({ command, args: { token: args.token } });
+              const channel = args.onProgress as { id: number };
+              const send = callbacks.get(channel.id)!;
+              let index = 0;
+              Reflect.set(window, '__emitEnvironmentProgress', (message: EnvironmentMoveProgress) =>
+                send({ message, index: index++ }),
+              );
+              try {
+                if (Reflect.get(window, '__holdEnvironmentMove')) {
+                  await new Promise<void>((resolve) =>
+                    Reflect.set(window, '__continueEnvironmentMove', resolve),
+                  );
+                }
+                if (Reflect.get(window, '__environmentFileFailure'))
+                  throw structuredClone(Reflect.get(window, '__environmentFileFailure'));
+                if (Reflect.get(window, '__failEnvironmentMove'))
+                  throw new Error('Copy failed. Original environment preserved.');
+                const source = state.root;
+                state.root = 'D:\\Larager novo';
+                state.environmentMove = {
+                  cleanupSource: Reflect.get(window, '__pendingEnvironmentCleanup') ? source : null,
+                  cleanupError: null,
+                  cleanupIssue: Reflect.get(window, '__cleanupFileFailure') ?? null,
+                };
+                return structuredClone(state.environmentMove);
+              } finally {
+                send({ end: true, index });
+              }
             }
             if (command === 'cleanup_environment') {
               environmentCalls.push({ command, args });
@@ -784,6 +805,140 @@ test('environment folder stays unchanged until confirmation and can be moved', a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+});
+
+test('environment move streams byte progress and estimates through verification and cleanup', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  await page.evaluate(() => Reflect.set(window, '__holdEnvironmentMove', true));
+  await page.getByRole('button', { name: 'Change folder', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Move environment', exact: true });
+  await dialog.getByRole('button', { name: 'Move and clean old folder', exact: true }).click();
+  const bar = dialog.getByRole('progressbar', { name: 'Environment move progress' });
+  await expect(bar).toBeVisible();
+  await expect(bar).not.toHaveAttribute('value');
+  await expect(dialog).toContainText('Calculating environment size');
+  await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+  const progress: EnvironmentMoveProgress = {
+    phase: 'copying',
+    copiedBytes: 80_000_000,
+    totalBytes: 200_000_000,
+    copiedFiles: 40,
+    totalFiles: 100,
+    processedBytes: 250_000_000,
+    totalProcessingBytes: 1_000_000_000,
+    estimatedSecondsRemaining: null,
+  };
+  const emit = (update: Partial<EnvironmentMoveProgress>) =>
+    page.evaluate((payload) => Reflect.get(window, '__emitEnvironmentProgress')(payload), {
+      ...progress,
+      ...update,
+    });
+  await emit({});
+  await expect(bar).toHaveAttribute('value', '25');
+  await expect(dialog).toContainText('80 MB of 200 MB copied');
+  await expect(dialog).toContainText('40 of 100 files');
+  await expect(dialog).toContainText('Measuring transfer speed');
+  // A chunk within the next large file advances bytes before the file count changes.
+  await emit({
+    copiedBytes: 90_000_000,
+    processedBytes: 300_000_000,
+    estimatedSecondsRemaining: 90,
+  });
+  await expect(bar).toHaveAttribute('value', '30');
+  await expect(dialog).toContainText('40 of 100 files');
+  await expect(dialog).toContainText('About 1 min 30 sec remaining');
+  await emit({
+    phase: 'switching',
+    copiedBytes: 200_000_000,
+    copiedFiles: 100,
+    processedBytes: 600_000_000,
+  });
+  await expect(dialog).toContainText('Updating environment paths');
+  await expect(bar).toHaveAttribute('value', '60');
+  await expect(dialog).not.toContainText('remaining');
+  await emit({
+    phase: 'cleaning',
+    copiedBytes: 200_000_000,
+    copiedFiles: 100,
+    processedBytes: 800_000_000,
+    estimatedSecondsRemaining: 12,
+  });
+  await expect(bar).toHaveAttribute('value', '80');
+  await expect(dialog).toContainText('Verifying and cleaning the old folder');
+  await expect(dialog).toContainText('About 12 sec remaining');
+  await dialog.screenshot({ path: test.info().outputPath('move-progress.png') });
+  await emit({
+    phase: 'cleaning',
+    copiedBytes: 200_000_000,
+    copiedFiles: 100,
+    processedBytes: 1_000_000_000,
+  });
+  await expect(bar).toHaveAttribute('value', '99');
+  await expect(dialog).toContainText('Finishing pending steps');
+  await emit({
+    phase: 'complete',
+    copiedBytes: 200_000_000,
+    copiedFiles: 100,
+    processedBytes: 1_000_000_000,
+  });
+  await expect(bar).toHaveAttribute('value', '100');
+  await page.evaluate(() => Reflect.get(window, '__continueEnvironmentMove')());
+  await expect(dialog).toBeHidden();
+  await expect(page.locator('.workspace-path')).toHaveText('D:\\Larager novo');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
+test('environment progress is localized and resets after a failed move', async ({ page }) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Settings');
+  await page.getByRole('combobox', { name: 'Language', exact: true }).click();
+  await page.getByRole('option', { name: /Portugu/ }).click();
+  await page.evaluate(() => {
+    Reflect.set(window, '__holdEnvironmentMove', true);
+    Reflect.set(window, '__failEnvironmentMove', true);
+  });
+  await page.getByRole('button', { name: 'Alterar pasta', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Mover ambiente', exact: true });
+  const move = dialog.getByRole('button', { name: 'Mover e limpar pasta antiga', exact: true });
+  await move.click();
+  await page.evaluate(() =>
+    Reflect.get(
+      window,
+      '__emitEnvironmentProgress',
+    )({
+      phase: 'copying',
+      copiedBytes: 100_000_000,
+      totalBytes: 200_000_000,
+      copiedFiles: 4,
+      totalFiles: 10,
+      processedBytes: 300_000_000,
+      totalProcessingBytes: 1_000_000_000,
+      estimatedSecondsRemaining: 15,
+    }),
+  );
+  const bar = dialog.getByRole('progressbar', { name: 'Progresso da mudança do ambiente' });
+  await expect(bar).toHaveAttribute('value', '30');
+  await expect(dialog).toContainText('Copiando e verificando arquivos');
+  await expect(dialog).toContainText('Aproximadamente 15 s restantes');
+  await dialog.screenshot({ path: test.info().outputPath('move-progress-pt.png') });
+  await page.evaluate(() => Reflect.get(window, '__continueEnvironmentMove')());
+  await expect(dialog.getByRole('alert')).toContainText('Original environment preserved');
+  await expect(bar).toBeHidden();
+  await page.evaluate(() => Reflect.set(window, '__failEnvironmentMove', false));
+  await move.click();
+  await expect(bar).toBeVisible();
+  await expect(bar).not.toHaveAttribute('value');
+  await expect(dialog).toContainText('Calculando tamanho do ambiente');
+  await expect(dialog).not.toContainText('15 s restantes');
+  await page.evaluate(() => Reflect.get(window, '__continueEnvironmentMove')());
+  await expect(dialog).toBeHidden();
 });
 
 test('environment copy failures preserve the path and pending cleanup stays visible', async ({
