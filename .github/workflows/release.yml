@@ -43,6 +43,21 @@ jobs:
       - name: Verify download checksums
         working-directory: release-assets
         run: sha256sum --check SHA256SUMS.txt
+      - name: Record desktop validation for older tags
+        shell: bash
+        run: |
+          # A manual retry can build a tag created before the template was updated.
+          if ! grep -Fq '## Validação pendente antes de publicar' release-assets/RELEASE-NOTES.md; then
+            cat >> release-assets/RELEASE-NOTES.md <<'NOTES'
+
+          ## Validação pendente antes de publicar
+
+          - [ ] Testar o executável deste release em Windows 11 x64, numa sessão padrão com WebView2 instalado: `pnpm test:desktop --smoke <caminho-do-open-larager.exe>`. Registrar o resultado nestas notas.
+          - [ ] Concluir as verificações de instalação, atualização e preservação de dados de `docs/releasing.md`.
+
+          O teste interativo do desktop exige uma sessão sem elevação; o runner Windows do GitHub usa administrador com UAC desabilitado.
+          NOTES
+          fi
       - name: Create or update draft
         shell: bash
         run: |

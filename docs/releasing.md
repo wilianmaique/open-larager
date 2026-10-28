@@ -3,9 +3,11 @@
 ## Fluxo no GitHub
 
 - **`.github/workflows/ci.yml` — Windows verification**: verifica branches e pull requests, sem criar releases. Também é reutilizado pelo workflow de release.
-- **`.github/workflows/release.yml` — Windows release**: ao enviar uma tag `v*`, verifica a versão, executa build, Playwright, testes Rust, Clippy e smoke test do desktop, gera os downloads e cria um **rascunho** com notas automáticas. A publicação fica a seu critério.
+- **`.github/workflows/release.yml` — Windows release**: ao enviar uma tag `v*`, verifica a versão, executa build, Playwright no navegador, testes Rust e Clippy, gera os downloads e cria um **rascunho** com notas automáticas. A publicação fica a seu critério.
 
 O job de compilação tem acesso de leitura ao repositório; somente o job que anexa os downloads recebe `contents: write`. O `GITHUB_TOKEN` é fornecido pelo GitHub: não é necessário criar um PAT. O workflow não inclui assinatura Authenticode; ela continua como requisito pendente antes da distribuição conforme a lista abaixo.
+
+O [runner Windows hospedado pelo GitHub usa administrador com UAC desabilitado](https://docs.github.com/en/actions/reference/runners/github-hosted-runners#administrative-privileges). O app exige uma sessão padrão e recusa executar serviços elevados. Por isso, o teste interativo `pnpm test:desktop --smoke <caminho-do-open-larager.exe>` é uma validação **manual obrigatória antes de publicar**, em Windows 11 x64 com WebView2 instalado. Extraia o ZIP portátil do rascunho e, no projeto, informe o caminho desse executável; registre o resultado nas notas. O resumo do CI e os novos rascunhos mantêm essa pendência explícita; o build no servidor não certifica a execução no desktop.
 
 ### Preparar e enviar a tag
 
@@ -42,6 +44,8 @@ Os downloads são anexos do release, separados do código e dos artifacts tempor
 O instalador e o ZIP contêm somente o gerenciador. WebView2 é pré-requisito; PHP, bancos e servidores continuam sendo baixados individualmente no app. Os arquivos **Source code** que o GitHub adiciona são o código-fonte, não o instalador.
 
 Para repetir uma tentativa, use **Re-run jobs** na execução original ou **Actions → Windows release → Run workflow**, selecione `main` e informe uma **tag já existente**. O workflow compila o conteúdo dessa tag e só substitui anexos enquanto o release for rascunho, preservando notas editadas. Depois de publicado, use uma nova versão e uma nova tag; não mova tags já distribuídas. A opção manual aparece depois que `release.yml` estiver na branch padrão.
+
+Se a correção foi apenas no workflow e a tag ainda não tem release publicado, faça commit e push da correção e use **Run workflow** em `main` com a mesma tag. Essa execução usa o workflow atualizado e o código da tag. **Re-run jobs** da execução anterior conserva o workflow antigo. Correções no código do app exigem uma nova versão e uma tag que inclua esse código.
 
 Para preparar arquivos localmente: execute `pnpm desktop:bundle` e `pwsh -NoProfile -File scripts/package-release.ps1`. Os downloads ficam em `release-assets/`, ignorado pelo Git. A pasta de saída deve estar ausente para não misturar builds; preserve ou mova arquivos anteriores antes de repetir. Se assinar os arquivos depois da geração, regenere os hashes de **todos** os downloads e atualize as notas antes de anexá-los. Não execute novamente o workflow sobre um rascunho que já recebeu arquivos assinados manualmente.
 

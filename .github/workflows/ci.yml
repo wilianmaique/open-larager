@@ -60,9 +60,17 @@ jobs:
       - name: Build Windows installer
         if: ${{ inputs.release-tag }}
         run: pnpm desktop:bundle
-      - name: Smoke test packaged application
+      - name: Record required desktop validation
         if: ${{ inputs.release-tag }}
-        run: pnpm test:desktop --smoke
+        shell: pwsh
+        run: |
+          @'
+          ### Windows 11 desktop validation pending
+
+          Hosted Windows runners run as administrators with UAC disabled. Open Larager requires a standard user session, so its interactive desktop smoke test must run on Windows 11 x64 before publishing the draft.
+
+          Extract the portable download, then run `pnpm test:desktop --smoke <path-to-open-larager.exe>` from the project in a standard Windows session with WebView2 installed. Record the result in the release notes and follow `docs/releasing.md`.
+          '@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
       - name: Package release downloads
         if: ${{ inputs.release-tag }}
         shell: pwsh

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, copyFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, copyFile, writeFile, rm, readdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
 import { createServer } from 'node:net';
@@ -22,8 +22,10 @@ const smokeOnly = process.argv.includes('--smoke');
 const args = process.argv.slice(2).filter((argument) => argument !== '--smoke');
 const source = resolve(args[0] ?? 'src-tauri/target/release/open-larager.exe');
 const screenshot = args[1];
-const root = await mkdtemp(join(tmpdir(), 'open-larager-desktop-'));
-assert.equal(dirname(resolve(root)).toLowerCase(), resolve(tmpdir()).toLowerCase());
+// Windows TEMP can contain an 8.3 alias while the application returns canonical paths.
+const temporaryRoot = await realpath(tmpdir());
+const root = await mkdtemp(join(temporaryRoot, 'open-larager-desktop-'));
+assert.equal(dirname(resolve(root)).toLowerCase(), resolve(temporaryRoot).toLowerCase());
 assert.ok(basename(root).startsWith('open-larager-desktop-'));
 const executable = join(root, 'open-larager.exe');
 await copyFile(source, executable);
@@ -32,16 +34,20 @@ const debuggingPort = await freePort();
 const child = spawn(executable, [], {
   cwd: root,
   windowsHide: true,
-  stdio: 'ignore',
+  stdio: ['ignore', 'inherit', 'inherit'],
   env: {
     ...process.env,
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debuggingPort} --remote-debugging-address=127.0.0.1`,
   },
 });
 let exited = false;
+let exitCode;
+let exitSignal;
 let spawnError;
-child.once('exit', () => {
+child.once('exit', (code, signal) => {
   exited = true;
+  exitCode = code;
+  exitSignal = signal;
 });
 child.once('error', (error) => {
   spawnError = error;
@@ -51,7 +57,9 @@ try {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (spawnError) throw spawnError;
     if (exited)
-      throw new Error('The packaged application exited before its WebView became available.');
+      throw new Error(
+        `The packaged application exited before its WebView became available (exit code: ${exitCode}, signal: ${exitSignal ?? 'none'}). Check the application output above. Run this check in a standard Windows session with WebView2 installed.`,
+      );
     try {
       browser = await chromium.connectOverCDP(`http://127.0.0.1:${debuggingPort}`, {
         timeout: 1000,
@@ -131,6 +139,7 @@ try {
   );
   for (let attempt = 0; attempt < 60 && !exited; attempt++) await delay(250);
   assert.equal(exited, true, 'The main window did not shut down cleanly');
+  assert.equal(exitCode, 0, 'The application exited with an error');
   console.log(
     smokeOnly
       ? 'Verified packaged WebView2, real IPC, portable storage, separate browser profile, and application shutdown.'

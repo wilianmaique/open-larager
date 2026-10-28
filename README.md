@@ -124,4 +124,6 @@ O teste `toolchains` baixa duas versões de Node.js e PHP e o Composer; verifica
 
 Depois do build, `pnpm test:desktop` verifica o executável real com WebView2, IPC, uma instalação portátil temporária do Mailpit, o editor local e o encerramento da janela. O diretório temporário é removido ao terminar; hosts e certificados confiáveis não são alterados.
 
+Execute esse teste numa sessão padrão do Windows 11 x64. O runner hospedado pelo GitHub usa administrador com UAC desabilitado, incompatível com a proteção do app contra serviços elevados. Antes de publicar um rascunho, teste seu executável baixado com `pnpm test:desktop --smoke <caminho-do-open-larager.exe>` e registre o resultado nas notas do release.
+
 Veja [arquitetura e limites de segurança](docs/architecture.md) e [publicação de releases](docs/releasing.md).
