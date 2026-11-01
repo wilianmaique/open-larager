@@ -40,6 +40,7 @@ export function emptySnapshot(): Snapshot {
       theme: 'system',
       closeBehavior: 'ask',
       sites: [],
+      notepadpp: { registrationId: null, fileAssociations: false },
       services: Object.fromEntries(
         serviceIds.map((id) => [
           id,
@@ -82,6 +83,15 @@ export const userPathApi = {
   set: (id: ServiceId, enabled: boolean) => call('set_user_path', { id, enabled }),
   install: (id: ServiceId, version: string, addToPath: boolean) =>
     call('install_package', { id, version, addToPath }),
+};
+export const notepadppApi = {
+  open: () => call('open_notepadpp'),
+  configure: (enabled: boolean) => call('configure_notepadpp', { enabled }),
+  defaults: () => call('open_notepadpp_defaults'),
+};
+export const logsApi = {
+  read: (id: ServiceId) => call<string>('read_logs', { id }),
+  clear: (id: ServiceId | null) => call<number>('clear_logs', { id }),
 };
 export const phpExtensionsApi = {
   list: () => call<PhpExtensions>('get_php_extensions'),

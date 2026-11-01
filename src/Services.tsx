@@ -270,7 +270,9 @@ function ServiceList({ compact = false }: { compact?: boolean }) {
                   <button className="service-title" onClick={() => setSelected(id)}>
                     <strong>
                       {service.name}
-                      {id === 'caddy' && <span className="optional">{t('optional')}</span>}
+                      {(id === 'caddy' || id === 'notepadpp') && (
+                        <span className="optional">{t('optional')}</span>
+                      )}
                     </strong>
                     <small>
                       {t(
@@ -284,7 +286,9 @@ function ServiceList({ compact = false }: { compact?: boolean }) {
                   {!status.version && <small>{t('available')}</small>}
                 </div>
                 <div className="port-cell" role="cell">
-                  {!service.daemon && <span>{t('terminalTool')}</span>}
+                  {!service.daemon && (
+                    <span>{t(id === 'notepadpp' ? 'portableTool' : 'terminalTool')}</span>
+                  )}
                   {snapshot.settings.services[id].ports.map((port) => (
                     <span key={port}>{port}</span>
                   ))}

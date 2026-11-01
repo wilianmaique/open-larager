@@ -101,6 +101,7 @@ impl Engine {
             config::ensure(&engine.storage, ServiceId::Php, &install.version, settings)?;
         }
         user_path::upgrade_php_cli(&engine.storage, engine.settings.get_mut())?;
+        crate::notepadpp::sync(&engine.storage, engine.settings.get_mut())?;
         Ok(engine)
     }
     pub(crate) fn from_storage(storage: Storage) -> Result<Self> {
@@ -210,13 +211,16 @@ impl Engine {
             .revision
             .checked_add(1)
             .ok_or_else(|| invalid("Settings revision overflow"))?;
-        user_path::transaction(
-            &self.storage,
-            &previous,
-            &mut settings,
-            changes,
-            refresh_path,
-        )?;
+        let next = settings.clone();
+        crate::notepadpp::transaction(&self.storage, &previous, &next, || {
+            user_path::transaction(
+                &self.storage,
+                &previous,
+                &mut settings,
+                changes,
+                refresh_path,
+            )
+        })?;
         *self.settings.write().await = settings;
         Ok(())
     }
@@ -246,6 +250,9 @@ impl Engine {
             .try_lock()
             .map_err(|_| invalid("Another workspace operation is in progress"))?;
         let package = catalog::find(id, &version)?;
+        if id == ServiceId::Notepadpp && add_to_path {
+            return Err(invalid("Notepad++ does not support PATH registration"));
+        }
         let mut settings = self.settings.read().await.clone();
         if settings.services[&id]
             .installations
@@ -325,6 +332,9 @@ impl Engine {
         user_path::status(&self.storage, &*self.settings.read().await, id)
     }
     pub async fn set_user_path(&self, id: ServiceId, enabled: bool) -> Result<()> {
+        if id == ServiceId::Notepadpp {
+            return Err(invalid("Notepad++ does not support PATH registration"));
+        }
         let _operation = self
             .operation
             .try_lock()
@@ -337,6 +347,53 @@ impl Engine {
         }
         settings.services.get_mut(&id).unwrap().add_to_path = enabled;
         self.commit_workspace(settings, Vec::new(), Some(id)).await
+    }
+    pub async fn open_notepadpp(&self) -> Result<()> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        crate::notepadpp::open(&self.storage, &*self.settings.read().await)
+    }
+    pub async fn configure_notepadpp(&self, enabled: bool) -> Result<()> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let mut settings = self.settings.read().await.clone();
+        if enabled {
+            toolchain::package_file(
+                &self.storage,
+                &settings,
+                ServiceId::Notepadpp,
+                "notepad++.exe",
+            )?;
+            if settings.notepadpp.registration_id.is_none() {
+                settings.notepadpp.registration_id = Some(uuid::Uuid::new_v4().to_string());
+                // Persist ownership before any registry write, including a crash
+                // halfway through the first registration.
+                self.commit(settings.clone()).await?;
+            }
+        }
+        settings.notepadpp.file_associations = enabled;
+        self.commit(settings).await?;
+        // Also repairs an existing registration if it was removed externally.
+        crate::notepadpp::sync(&self.storage, &*self.settings.read().await)
+    }
+    pub async fn open_notepadpp_defaults(&self) -> Result<()> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        let settings = self.settings.read().await;
+        toolchain::package_file(
+            &self.storage,
+            &settings,
+            ServiceId::Notepadpp,
+            "notepad++.exe",
+        )?;
+        crate::notepadpp::sync(&self.storage, &settings)?;
+        crate::notepadpp::open_defaults(&settings)
     }
     pub fn cancel_install(&self, id: ServiceId) -> Result<()> {
         if let Some((active, cancel)) = self
@@ -721,7 +778,7 @@ impl Engine {
                     .args(["--adapter", "caddyfile"]);
                 self.caddy_env(&mut cmd);
             }
-            ServiceId::Nodejs | ServiceId::Composer => {
+            ServiceId::Nodejs | ServiceId::Composer | ServiceId::Notepadpp => {
                 return Err(invalid("Terminal tools cannot be started as services"));
             }
         }
@@ -967,6 +1024,9 @@ impl Engine {
         if service.active_version.as_ref() == Some(&version) {
             service.active_version = service.installations.first().map(|i| i.version.clone());
         }
+        if id == ServiceId::Notepadpp && service.active_version.is_none() {
+            settings.notepadpp.file_associations = false;
+        }
         if let Err(error) = self.commit(settings).await {
             let _ = fs::rename(staged, directory);
             return Err(error);
@@ -990,6 +1050,9 @@ impl Engine {
         for path in files {
             let mut file = fs::File::open(&path)?;
             let length = file.metadata()?.len();
+            if length == 0 {
+                continue;
+            }
             file.seek(SeekFrom::Start(length.saturating_sub(48 * 1024)))?;
             let mut bytes = Vec::new();
             file.read_to_end(&mut bytes)?;
@@ -1007,6 +1070,13 @@ impl Engine {
             ));
         }
         Ok(output)
+    }
+    pub async fn clear_logs(&self, id: Option<ServiceId>) -> Result<usize> {
+        let _operation = self
+            .operation
+            .try_lock()
+            .map_err(|_| invalid("Another workspace operation is in progress"))?;
+        crate::logs::clear(&self.storage, id)
     }
     pub async fn read_config(&self, id: ServiceId) -> Result<String> {
         if id.definition().config_name.is_none() {
@@ -1111,7 +1181,7 @@ impl Engine {
                 self.caddy_env(&mut cmd);
             }
             ServiceId::Redis => return Ok(()), // Redis provides no offline validator; startup reports parser errors.
-            ServiceId::Nodejs | ServiceId::Composer => {
+            ServiceId::Nodejs | ServiceId::Composer | ServiceId::Notepadpp => {
                 return Err(invalid("This tool has no service configuration file"));
             }
         }
@@ -1399,13 +1469,16 @@ impl Engine {
         let backup_path = plan.backup(&self.storage)?;
         plan.verify(&self.storage)?;
         let removed_files = plan.changes.removals.len();
-        user_path::transaction_changes(
-            &self.storage,
-            &current,
-            &mut plan.settings,
-            plan.changes,
-            None,
-        )?;
+        let next = plan.settings.clone();
+        crate::notepadpp::transaction(&self.storage, &current, &next, || {
+            user_path::transaction_changes(
+                &self.storage,
+                &current,
+                &mut plan.settings,
+                plan.changes,
+                None,
+            )
+        })?;
         *self.settings.write().await = plan.settings;
         self.failures.write().await.clear();
         Ok(crate::reset::ResetResult {

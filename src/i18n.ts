@@ -147,6 +147,19 @@ export const en = {
   bundledTool: 'Included: {name} {version}',
   descriptionNodejs: 'Node.js with its matching npm and npx.',
   descriptionComposer: 'PHP dependencies with the active PHP version.',
+  descriptionNotepadpp: 'Optional portable editor for text, logs and configuration files.',
+  portableTool: 'Portable editor',
+  openNotepadpp: 'Open Notepad++',
+  notepadppPortableHelp:
+    'Download the official portable x64 ZIP only when you choose to install it. Preferences and session backups are kept separately and preserved when removing the package. Close Notepad++ before moving the environment.',
+  notepadppDefaultInstall: 'Choose Notepad++ as a default editor after installation',
+  notepadppDefaultHelp:
+    'Offers .log, .txt, .cfg, .conf and .ini files. Windows Default apps will open so you can confirm each extension. Installing alone does not change your defaults.',
+  notepadppAssociations: 'Default editor',
+  notepadppRegister: 'Offer this portable Notepad++ in Windows Default apps',
+  notepadppChooseDefaults: 'Choose extensions in Windows',
+  notepadppRemoveHelp:
+    'The registration follows the active version and environment folder. Turning it off or removing the last version removes this registration; choose another default in Windows if needed.',
   pathInstallOption: 'Add the active version to my user PATH',
   pathInstallHelp:
     'PATH will use {name} {version}. Installing another version keeps the active version; change Active version to switch. Optional, for this Windows user only.',
@@ -342,6 +355,18 @@ export const en = {
   refresh: 'Refresh',
   autoRefresh: 'Live refresh',
   noLogs: 'No logs yet',
+  clearLogs: 'Clear logs',
+  clearAllLogs: 'Clear all logs',
+  clearServiceLogs: 'Clear logs for {name}?',
+  clearServiceLogsHelp:
+    'Empty the .log files for every version of {name}. Nginx also includes site logs. This cannot be undone.',
+  clearAllLogsHelp:
+    'Empty all managed .log files, including old versions, removed packages and site logs. This cannot be undone.',
+  clearLogsRunningHelp:
+    'Services keep running and may write new entries immediately. Databases, projects and settings are preserved.',
+  clearLogsConfirm: 'Clear log contents',
+  logsCleared: 'Log contents cleared.',
+  openLogsFolder: 'Open logs folder',
   noLogsDescription: 'Install and start a service to see its output here.',
   selectService: 'Select a service',
   preferences: 'Make it feel like home.',
@@ -572,6 +597,19 @@ const pt: Dictionary = {
   bundledTool: 'Incluído: {name} {version}',
   descriptionNodejs: 'Node.js com npm e npx da mesma distribuição.',
   descriptionComposer: 'Dependências PHP com a versão ativa do PHP.',
+  descriptionNotepadpp: 'Editor portátil opcional para textos, logs e arquivos de configuração.',
+  portableTool: 'Editor portátil',
+  openNotepadpp: 'Abrir Notepad++',
+  notepadppPortableHelp:
+    'Baixe o ZIP portátil x64 oficial somente se quiser instalar. Preferências e cópias da sessão ficam separadas e são preservadas ao remover o pacote. Feche o Notepad++ antes de mover o ambiente.',
+  notepadppDefaultInstall: 'Escolher Notepad++ como editor padrão após instalar',
+  notepadppDefaultHelp:
+    'Oferece arquivos .log, .txt, .cfg, .conf e .ini. Os Aplicativos padrão do Windows serão abertos para você confirmar cada extensão. Apenas instalar não altera seus padrões.',
+  notepadppAssociations: 'Editor padrão',
+  notepadppRegister: 'Oferecer este Notepad++ portátil nos Aplicativos padrão do Windows',
+  notepadppChooseDefaults: 'Escolher extensões no Windows',
+  notepadppRemoveHelp:
+    'O registro acompanha a versão ativa e a pasta do ambiente. Desativar esta opção ou remover a última versão apaga esse registro; escolha outro padrão no Windows se necessário.',
   pathInstallOption: 'Adicionar a versão ativa ao meu PATH',
   pathInstallHelp:
     'O PATH usará {name} {version}. Instalar outra versão mantém a versão ativa; altere Versão ativa para trocar. Opcional, apenas para este usuário do Windows.',
@@ -764,6 +802,18 @@ const pt: Dictionary = {
   refresh: 'Atualizar',
   autoRefresh: 'Atualização automática',
   noLogs: 'Ainda sem logs',
+  clearLogs: 'Limpar logs',
+  clearAllLogs: 'Limpar todos os logs',
+  clearServiceLogs: 'Limpar logs de {name}?',
+  clearServiceLogsHelp:
+    'Esvazia os arquivos .log de todas as versões de {name}. No Nginx, inclui também os logs dos sites. Esta ação não pode ser desfeita.',
+  clearAllLogsHelp:
+    'Esvazia todos os arquivos .log gerenciados, incluindo versões antigas, pacotes removidos e logs dos sites. Esta ação não pode ser desfeita.',
+  clearLogsRunningHelp:
+    'Os serviços continuam funcionando e podem gerar novas entradas imediatamente. Bancos, projetos e configurações são preservados.',
+  clearLogsConfirm: 'Limpar conteúdo dos logs',
+  logsCleared: 'Conteúdo dos logs limpo.',
+  openLogsFolder: 'Abrir pasta de logs',
   noLogsDescription: 'Instale e inicie um serviço para ver sua saída aqui.',
   selectService: 'Selecionar serviço',
   preferences: 'Do seu jeito.',
@@ -996,6 +1046,20 @@ const es: Dictionary = {
   bundledTool: 'Incluido: {name} {version}',
   descriptionNodejs: 'Node.js con su npm y npx correspondientes.',
   descriptionComposer: 'Dependencias PHP con la versión activa de PHP.',
+  descriptionNotepadpp:
+    'Editor portátil opcional para texto, registros y archivos de configuración.',
+  portableTool: 'Editor portátil',
+  openNotepadpp: 'Abrir Notepad++',
+  notepadppPortableHelp:
+    'Descarga el ZIP portátil x64 oficial solo si decides instalarlo. Las preferencias y copias de la sesión se guardan por separado y se conservan al quitar el paquete. Cierra Notepad++ antes de mover el entorno.',
+  notepadppDefaultInstall: 'Elegir Notepad++ como editor predeterminado al instalar',
+  notepadppDefaultHelp:
+    'Ofrece archivos .log, .txt, .cfg, .conf e .ini. Se abrirán las Aplicaciones predeterminadas de Windows para confirmar cada extensión. Instalar no cambia tus valores predeterminados.',
+  notepadppAssociations: 'Editor predeterminado',
+  notepadppRegister: 'Ofrecer este Notepad++ portátil en Aplicaciones predeterminadas de Windows',
+  notepadppChooseDefaults: 'Elegir extensiones en Windows',
+  notepadppRemoveHelp:
+    'El registro sigue la versión activa y la carpeta del entorno. Desactivar esta opción o quitar la última versión elimina este registro; elige otro editor en Windows si hace falta.',
   pathInstallOption: 'Añadir la versión activa a mi PATH',
   pathInstallHelp:
     'PATH usará {name} {version}. Instalar otra versión mantiene la activa; cambia Versión activa para sustituirla. Opcional, solo para este usuario de Windows.',
@@ -1190,6 +1254,18 @@ const es: Dictionary = {
   refresh: 'Actualizar',
   autoRefresh: 'Actualización automática',
   noLogs: 'Aún no hay registros',
+  clearLogs: 'Limpiar registros',
+  clearAllLogs: 'Limpiar todos los registros',
+  clearServiceLogs: '¿Limpiar los registros de {name}?',
+  clearServiceLogsHelp:
+    'Vacía los archivos .log de todas las versiones de {name}. Nginx también incluye los registros de los sitios. Esta acción no se puede deshacer.',
+  clearAllLogsHelp:
+    'Vacía todos los archivos .log administrados, incluidas versiones antiguas, paquetes eliminados y registros de sitios. Esta acción no se puede deshacer.',
+  clearLogsRunningHelp:
+    'Los servicios siguen funcionando y pueden generar nuevas entradas de inmediato. Se conservan las bases de datos, los proyectos y la configuración.',
+  clearLogsConfirm: 'Vaciar los registros',
+  logsCleared: 'Contenido de los registros borrado.',
+  openLogsFolder: 'Abrir carpeta de registros',
   noLogsDescription: 'Instala e inicia un servicio para ver su salida aquí.',
   selectService: 'Seleccionar servicio',
   preferences: 'A tu manera.',
@@ -1400,6 +1476,19 @@ const zh: Dictionary = {
   bundledTool: '包含：{name} {version}',
   descriptionNodejs: 'Node.js 及其配套的 npm 和 npx。',
   descriptionComposer: '使用活动 PHP 版本管理 PHP 依赖。',
+  descriptionNotepadpp: '可选的便携编辑器，用于文本、日志和配置文件。',
+  portableTool: '便携编辑器',
+  openNotepadpp: '打开 Notepad++',
+  notepadppPortableHelp:
+    '仅在您选择安装时下载官方 x64 便携 ZIP。首选项和会话备份单独保存，移除软件包时会保留。移动环境前请关闭 Notepad++。',
+  notepadppDefaultInstall: '安装后选择 Notepad++ 作为默认编辑器',
+  notepadppDefaultHelp:
+    '支持 .log、.txt、.cfg、.conf 和 .ini。将打开 Windows 默认应用设置，由您逐一确认扩展名。仅安装不会更改默认应用。',
+  notepadppAssociations: '默认编辑器',
+  notepadppRegister: '在 Windows 默认应用中提供此便携版 Notepad++',
+  notepadppChooseDefaults: '在 Windows 中选择扩展名',
+  notepadppRemoveHelp:
+    '注册信息随活动版本和环境文件夹更新。关闭此选项或移除最后一个版本将删除此注册；如有需要，请在 Windows 中选择其他默认应用。',
   pathInstallOption: '将当前版本添加到用户 PATH',
   pathInstallHelp:
     'PATH 将使用 {name} {version}。安装其他版本不会更改当前版本；请通过“当前版本”切换。可选，仅适用于当前 Windows 用户。',
@@ -1576,6 +1665,16 @@ const zh: Dictionary = {
   refresh: '刷新',
   autoRefresh: '实时刷新',
   noLogs: '暂无日志',
+  clearLogs: '清空日志',
+  clearAllLogs: '清空所有日志',
+  clearServiceLogs: '清空 {name} 的日志？',
+  clearServiceLogsHelp: '清空 {name} 所有版本的 .log 文件。Nginx 还包括站点日志。此操作无法撤销。',
+  clearAllLogsHelp:
+    '清空所有托管的 .log 文件，包括旧版本、已移除软件包和站点日志。此操作无法撤销。',
+  clearLogsRunningHelp: '服务将继续运行，并可能立即写入新日志。数据库、项目和设置会保留。',
+  clearLogsConfirm: '清空日志内容',
+  logsCleared: '日志内容已清空。',
+  openLogsFolder: '打开日志文件夹',
   noLogsDescription: '安装并启动服务后，此处会显示运行输出。',
   selectService: '选择服务',
   preferences: '打造顺手的环境。',
@@ -1800,6 +1899,19 @@ const hi: Dictionary = {
   bundledTool: 'शामिल: {name} {version}',
   descriptionNodejs: 'Node.js के साथ उसी वितरण के npm और npx।',
   descriptionComposer: 'सक्रिय PHP संस्करण से PHP डिपेंडेंसी प्रबंधन।',
+  descriptionNotepadpp: 'टेक्स्ट, लॉग और कॉन्फ़िगरेशन फ़ाइलों के लिए वैकल्पिक पोर्टेबल संपादक।',
+  portableTool: 'पोर्टेबल संपादक',
+  openNotepadpp: 'Notepad++ खोलें',
+  notepadppPortableHelp:
+    'आधिकारिक पोर्टेबल x64 ZIP केवल आपके इंस्टॉल करने पर डाउनलोड होता है। प्राथमिकताएँ और सत्र बैकअप अलग रहते हैं और पैकेज हटाने पर सुरक्षित रहते हैं। परिवेश स्थानांतरित करने से पहले Notepad++ बंद करें।',
+  notepadppDefaultInstall: 'इंस्टॉल करने के बाद Notepad++ को डिफ़ॉल्ट संपादक चुनें',
+  notepadppDefaultHelp:
+    '.log, .txt, .cfg, .conf और .ini फ़ाइलों के लिए उपलब्ध। हर एक्सटेंशन की पुष्टि के लिए Windows के डिफ़ॉल्ट ऐप खुलेंगे। केवल इंस्टॉल करने से डिफ़ॉल्ट नहीं बदलते।',
+  notepadppAssociations: 'डिफ़ॉल्ट संपादक',
+  notepadppRegister: 'इस पोर्टेबल Notepad++ को Windows के डिफ़ॉल्ट ऐप में दिखाएँ',
+  notepadppChooseDefaults: 'Windows में एक्सटेंशन चुनें',
+  notepadppRemoveHelp:
+    'पंजीकरण सक्रिय संस्करण और परिवेश फ़ोल्डर के साथ बदलता है। इसे बंद करने या आखिरी संस्करण हटाने पर यह पंजीकरण हटता है; ज़रूरत हो तो Windows में दूसरा डिफ़ॉल्ट चुनें।',
   pathInstallOption: 'सक्रिय संस्करण को मेरे PATH में जोड़ें',
   pathInstallHelp:
     'PATH में {name} {version} इस्तेमाल होगा। दूसरा संस्करण इंस्टॉल करने से सक्रिय संस्करण नहीं बदलेगा; बदलने के लिए सक्रिय संस्करण चुनें। वैकल्पिक, केवल इस Windows उपयोगकर्ता के लिए।',
@@ -1989,6 +2101,18 @@ const hi: Dictionary = {
   refresh: 'ताज़ा करें',
   autoRefresh: 'अपने आप ताज़ा करें',
   noLogs: 'अभी कोई लॉग नहीं',
+  clearLogs: 'लॉग साफ़ करें',
+  clearAllLogs: 'सभी लॉग साफ़ करें',
+  clearServiceLogs: '{name} के लॉग साफ़ करें?',
+  clearServiceLogsHelp:
+    '{name} के सभी संस्करणों की .log फ़ाइलें खाली करता है। Nginx में साइट लॉग भी शामिल हैं। यह कार्रवाई वापस नहीं ली जा सकती।',
+  clearAllLogsHelp:
+    'पुराने संस्करणों, हटाए गए पैकेजों और साइटों सहित सभी प्रबंधित .log फ़ाइलें खाली करता है। यह कार्रवाई वापस नहीं ली जा सकती।',
+  clearLogsRunningHelp:
+    'सेवाएँ चलती रहेंगी और तुरंत नई प्रविष्टियाँ लिख सकती हैं। डेटाबेस, प्रोजेक्ट और सेटिंग सुरक्षित रहते हैं।',
+  clearLogsConfirm: 'लॉग की सामग्री साफ़ करें',
+  logsCleared: 'लॉग की सामग्री साफ़ हो गई।',
+  openLogsFolder: 'लॉग फ़ोल्डर खोलें',
   noLogsDescription: 'आउटपुट देखने के लिए सेवा इंस्टॉल करके शुरू करें।',
   selectService: 'सेवा चुनें',
   preferences: 'अपने तरीके से बनाएँ।',

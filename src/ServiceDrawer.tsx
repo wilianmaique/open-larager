@@ -26,7 +26,7 @@ import {
   Status,
 } from './components';
 import { Checkbox, NumberInput, Select } from './controls';
-import { call, packages, userPathApi } from './api';
+import { call, packages, userPathApi, notepadppApi } from './api';
 import { descriptionKeys, useApp } from './state';
 import { services } from './serviceRegistry';
 import { Logs } from './Logs';
@@ -58,6 +58,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
   const [ports, setPorts] = useState(config.ports.map(String));
   const [autoStart, setAutoStart] = useState(config.autoStart);
   const [registerAfterInstall, setRegisterAfterInstall] = useState(false);
+  const [defaultsAfterInstall, setDefaultsAfterInstall] = useState(false);
   const [pathStatus, setPathStatus] = useState<PathStatus | null>(null);
   const [pathError, setPathError] = useState('');
   const [content, setContent] = useState('');
@@ -73,7 +74,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
     let active = true;
     setPathStatus(null);
     setPathError('');
-    if (!config.activeVersion || !dependenciesReady) return;
+    if (id === 'notepadpp' || !config.activeVersion || !dependenciesReady) return;
     void userPathApi
       .status(id)
       .then((value) => {
@@ -148,6 +149,11 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
       async () => {
         await userPathApi.install(id, installVersion, registerAfterInstall);
         setRegisterAfterInstall(false);
+        if (id === 'notepadpp' && defaultsAfterInstall) {
+          setDefaultsAfterInstall(false);
+          await notepadppApi.configure(true);
+          await notepadppApi.defaults();
+        }
       },
       t('installSuccess', { name: service.name }),
     );
@@ -181,6 +187,12 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
         <Status status={status.status} />
         {status.pid && <code>PID {status.pid}</code>}
         <div className="drawer-status-actions">
+          {id === 'notepadpp' && config.activeVersion && (
+            <Button disabled={busy} onClick={() => void run(notepadppApi.open)}>
+              <ExternalLink size={14} />
+              {t('openNotepadpp')}
+            </Button>
+          )}
           {config.activeVersion && service.daemon && (
             <>
               <IconButton
@@ -224,7 +236,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
       <div className="drawer-body" role="tabpanel">
         <div data-notification-host />
         {tab === 'extensions' && id === 'php' && <PhpExtensions version={config.activeVersion} />}
-        {!service.daemon && (
+        {!service.daemon && id !== 'notepadpp' && (
           <section className="drawer-section">
             <p>{t('terminalToolHelp')}</p>
             {id === 'nodejs' && <p>{t('nodeNpmHelp')}</p>}
@@ -254,7 +266,7 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                 <h3>{t('installVersion')}</h3>
                 <span className="tag">x64</span>
               </div>
-              <p>{t('downloadOnly')}</p>
+              <p>{t(id === 'notepadpp' ? 'notepadppPortableHelp' : 'downloadOnly')}</p>
               <label className="field-label" htmlFor="install-version">
                 {t('chooseVersion')}
               </label>
@@ -306,21 +318,34 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                     })}
                   </p>
                 )}
-              <div className="path-install-option">
-                <Checkbox
-                  checked={config.addToPath || registerAfterInstall}
-                  disabled={busy || config.addToPath || alreadyInstalled || !dependenciesReady}
-                  onChange={(event) => setRegisterAfterInstall(event.target.checked)}
-                >
-                  {t('pathInstallOption')}
-                </Checkbox>
-                <p className="field-help">
-                  {t('pathInstallHelp', {
-                    name: service.name,
-                    version: config.activeVersion ?? installVersion,
-                  })}
-                </p>
-              </div>
+              {id === 'notepadpp' ? (
+                <div className="path-install-option">
+                  <Checkbox
+                    checked={defaultsAfterInstall}
+                    disabled={busy || alreadyInstalled}
+                    onChange={(event) => setDefaultsAfterInstall(event.target.checked)}
+                  >
+                    {t('notepadppDefaultInstall')}
+                  </Checkbox>
+                  <p className="field-help">{t('notepadppDefaultHelp')}</p>
+                </div>
+              ) : (
+                <div className="path-install-option">
+                  <Checkbox
+                    checked={config.addToPath || registerAfterInstall}
+                    disabled={busy || config.addToPath || alreadyInstalled || !dependenciesReady}
+                    onChange={(event) => setRegisterAfterInstall(event.target.checked)}
+                  >
+                    {t('pathInstallOption')}
+                  </Checkbox>
+                  <p className="field-help">
+                    {t('pathInstallHelp', {
+                      name: service.name,
+                      version: config.activeVersion ?? installVersion,
+                    })}
+                  </p>
+                </div>
+              )}
               {currentProgress && (
                 <div className="download-progress" role="status">
                   <div>
@@ -404,7 +429,34 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
                 </Button>
               </form>
             </section>
-            {config.activeVersion && (
+            {id === 'notepadpp' && config.activeVersion && (
+              <section className="drawer-section">
+                <h3>{t('notepadppAssociations')}</h3>
+                <Checkbox
+                  checked={snapshot.settings.notepadpp.fileAssociations}
+                  disabled={busy}
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
+                    void run(async () => {
+                      await notepadppApi.configure(enabled);
+                      if (enabled) await notepadppApi.defaults();
+                    });
+                  }}
+                >
+                  {t('notepadppRegister')}
+                </Checkbox>
+                <p className="field-help">{t('notepadppDefaultHelp')}</p>
+                <p className="field-help">{t('notepadppRemoveHelp')}</p>
+                <Button
+                  disabled={busy || !snapshot.settings.notepadpp.fileAssociations}
+                  onClick={() => void run(notepadppApi.defaults)}
+                >
+                  <ExternalLink size={14} />
+                  {t('notepadppChooseDefaults')}
+                </Button>
+              </section>
+            )}
+            {config.activeVersion && id !== 'notepadpp' && (
               <section className="drawer-section path-section">
                 <h3>{t('userPathTitle')}</h3>
                 <p>{t('userPathHelp')}</p>
@@ -627,6 +679,9 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
           />
           <div className="dialog-content">
             <p>{t('keepData')}</p>
+            {id === 'notepadpp' && snapshot.settings.notepadpp.fileAssociations && (
+              <p>{t('notepadppRemoveHelp')}</p>
+            )}
             {config.installations.length === 1 && dependentPaths.length > 0 && (
               <p role="alert">
                 {t('dependencyPathInUse', {

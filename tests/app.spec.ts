@@ -28,6 +28,8 @@ async function mockNative(page: Page) {
       const listeners = new Map<string, number>();
       const desktopCalls: { command: string; args: Record<string, unknown> }[] = [];
       const resetCalls: string[] = [];
+      const clearLogCalls: (string | null)[] = [];
+      const logContents = new Map<string, string>();
       let closePending = false;
       let callbackId = 0;
       const defaults =
@@ -55,6 +57,7 @@ async function mockNative(page: Page) {
           theme: 'light',
           closeBehavior: 'ask',
           sites: [] as Record<string, unknown>[],
+          notepadpp: { registrationId: null as string | null, fileAssociations: false },
           services: Object.fromEntries(
             ids.map((id) => [
               id,
@@ -79,6 +82,8 @@ async function mockNative(page: Page) {
       };
       Object.assign(window, {
         __resetCalls: resetCalls,
+        __clearLogCalls: clearLogCalls,
+        __failLogClear: false,
         __failConfigurationReset: false,
         __holdConfigurationReset: false,
         __desktopCalls: desktopCalls,
@@ -143,6 +148,7 @@ async function mockNative(page: Page) {
               state.settings.theme = 'system';
               state.settings.closeBehavior = 'ask';
               state.settings.sites = [];
+              state.settings.notepadpp.fileAssociations = false;
               rules = null;
               for (const id of ids) {
                 const service = state.settings.services[id];
@@ -297,6 +303,7 @@ async function mockNative(page: Page) {
               };
             }
             if (command === 'install_package' && status) {
+              desktopCalls.push({ command, args });
               const version = String(args.version);
               service.installations.push({
                 version,
@@ -311,6 +318,16 @@ async function mockNative(page: Page) {
                   : 'ready';
               }
               if (args.addToPath) service.addToPath = true;
+            } else if (command === 'configure_notepadpp') {
+              desktopCalls.push({ command, args });
+              state.settings.notepadpp.fileAssociations = Boolean(args.enabled);
+            } else if (command === 'open_notepadpp' || command === 'open_notepadpp_defaults') {
+              desktopCalls.push({ command, args });
+              if (
+                command === 'open_notepadpp_defaults' &&
+                Reflect.get(window, '__failEditorDefaults')
+              )
+                throw new Error('Windows default-app settings could not be opened');
             } else if (command === 'service_action' && status) {
               if (!definitions[id as keyof typeof definitions].daemon)
                 throw new Error('Terminal tools have no managed process');
@@ -349,9 +366,24 @@ async function mockNative(page: Page) {
               state.settings.language = String(args.language);
               state.settings.theme = String(args.theme);
             } else if (command === 'read_config') return 'memory_limit=256M\ndisplay_errors=On\n';
-            else if (command === 'read_logs')
-              return 'Service started successfully\nListening on 127.0.0.1\n';
-            else if (command === 'save_site') {
+            else if (command === 'read_logs') {
+              const contents =
+                logContents.get(id) ?? 'Service started successfully\nListening on 127.0.0.1\n';
+              if (Reflect.get(window, '__holdLogRead')) {
+                Reflect.set(window, '__holdLogRead', false);
+                await new Promise<void>((resolve) =>
+                  Reflect.set(window, '__continueLogRead', resolve),
+                );
+              }
+              return contents;
+            } else if (command === 'clear_logs') {
+              clearLogCalls.push((args.id as string | null) ?? null);
+              if (Reflect.get(window, '__failLogClear'))
+                throw new Error('A log file is locked. Close the external viewer and try again.');
+              for (const service of ids)
+                if (!args.id || args.id === service) logContents.set(service, '');
+              return 2;
+            } else if (command === 'save_site') {
               const site = args.site as Record<string, unknown>;
               state.settings.sites = [{ ...site, id: 'test-domain' }];
               state.hostsSynced = false;
@@ -375,6 +407,8 @@ async function mockNative(page: Page) {
               if (service.activeVersion === args.version)
                 service.activeVersion = service.installations[0]?.version ?? null;
               if (!service.activeVersion) service.addToPath = false;
+              if (id === 'notepadpp' && !service.activeVersion)
+                state.settings.notepadpp.fileAssociations = false;
               status.version = service.activeVersion;
               status.status = service.activeVersion
                 ? definitions[id as keyof typeof definitions].daemon
@@ -801,6 +835,80 @@ test('PHP extensions select compatible builds, preserve errors and remain separa
   ).toBeVisible();
 });
 
+test('log clearing is scoped, confirmed and refreshed even with live refresh off', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  for (const id of ['php', 'postgresql'] as const) {
+    await page
+      .getByTestId(`service-${id}`)
+      .getByRole('button', { name: 'Install', exact: true })
+      .click();
+    const drawer = page.getByRole('dialog');
+    await drawer.getByRole('button', { name: 'Download & install', exact: true }).click();
+    await expect(drawer.getByText('Stopped', { exact: true })).toBeVisible();
+    if (id === 'php') {
+      await drawer.getByRole('button', { name: 'Start', exact: true }).click();
+      await expect(drawer.getByText('Running', { exact: true })).toBeVisible();
+    }
+    await drawer.getByRole('button', { name: 'Close', exact: true }).click();
+  }
+  await navigate(page, 'Logs');
+  await expect(page.locator('.log-content')).toContainText('Service started successfully');
+  await page.getByRole('checkbox', { name: 'Live refresh', exact: true }).focus();
+  await page.keyboard.press('Space');
+  await page.getByRole('button', { name: 'Clear logs', exact: true }).click();
+  const phpDialog = page.getByRole('dialog', { name: 'Clear logs for PHP?', exact: true });
+  await expect(phpDialog).toContainText('every version of PHP');
+  await phpDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(await page.evaluate(() => Reflect.get(window, '__clearLogCalls'))).toEqual([]);
+  // A pending refresh with old output must not repopulate logs after clearing.
+  await page.evaluate(() => Reflect.set(window, '__holdLogRead', true));
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => typeof Reflect.get(window, '__continueLogRead')))
+    .toBe('function');
+  await page.getByRole('button', { name: 'Clear logs', exact: true }).click();
+  await phpDialog.getByRole('button', { name: 'Clear log contents', exact: true }).click();
+  await expect(phpDialog).toBeHidden();
+  await page.evaluate(() => Reflect.get(window, '__continueLogRead')());
+  await expect(page.getByRole('heading', { name: 'No logs yet', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => Reflect.get(window, '__clearLogCalls'))).toEqual(['php']);
+  await page.getByRole('combobox', { name: 'Select a service', exact: true }).click();
+  await page.getByRole('option', { name: 'PostgreSQL', exact: true }).click();
+  await expect(page.locator('.log-content')).toContainText('Service started successfully');
+  await page.getByRole('button', { name: 'Clear all logs', exact: true }).click();
+  const all = page.getByRole('dialog', { name: 'Clear all logs', exact: true });
+  await expect(all).toContainText('removed packages and site logs');
+  await all.getByRole('button', { name: 'Clear log contents', exact: true }).click();
+  await expect(all).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'No logs yet', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => Reflect.get(window, '__clearLogCalls'))).toEqual(['php', null]);
+  await navigate(page, 'Services');
+  await expect(page.getByTestId('service-php').getByText('Running', { exact: true })).toBeVisible();
+});
+
+test('clear-all logs works without installed services and failures stay retryable', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await navigate(page, 'Logs');
+  await expect(
+    page.getByRole('combobox', { name: 'Select a service', exact: true }),
+  ).toBeDisabled();
+  await page.evaluate(() => Reflect.set(window, '__failLogClear', true));
+  await page.getByRole('button', { name: 'Clear all logs', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Clear all logs', exact: true });
+  await dialog.getByRole('button', { name: 'Clear log contents', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('A log file is locked');
+  await page.evaluate(() => Reflect.set(window, '__failLogClear', false));
+  await dialog.getByRole('button', { name: 'Clear log contents', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(await page.evaluate(() => Reflect.get(window, '__clearLogCalls'))).toEqual([null, null]);
+});
+
 test('version installation, service lifecycle and local Monaco editor', async ({
   page,
   baseURL,
@@ -855,6 +963,132 @@ test('version installation, service lifecycle and local Monaco editor', async ({
   await expect(live).toBeChecked();
   expect(external).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+for (const optIn of [false, true]) {
+  test(`Notepad++ portable installation keeps Windows integration optional (${optIn})`, async ({
+    page,
+  }) => {
+    await mockNative(page);
+    await page.goto('/');
+    const row = page.getByTestId('service-notepadpp');
+    await expect(row.getByText('Portable editor', { exact: true })).toBeAttached();
+    await row.getByRole('button', { name: 'Install', exact: true }).click();
+    const drawer = page.getByRole('dialog', { name: 'Notepad++ settings', exact: true });
+    const option = drawer.getByRole('checkbox', {
+      name: 'Choose Notepad++ as a default editor after installation',
+      exact: true,
+    });
+    await expect(option).not.toBeChecked();
+    await expect(drawer.getByText(/\.log, \.txt, \.cfg, \.conf and \.ini/)).toBeVisible();
+    await expect(drawer.getByRole('checkbox', { name: /PATH/ })).toHaveCount(0);
+    await expect(drawer.getByRole('spinbutton')).toHaveCount(0);
+    await expect(drawer.getByRole('tab')).toHaveCount(1);
+    if (optIn) {
+      await option.focus();
+      await page.keyboard.press('Space');
+    }
+    await drawer.getByRole('button', { name: 'Download & install', exact: true }).click();
+    await expect(drawer.getByText('Ready', { exact: true })).toBeVisible();
+    await expect(drawer.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
+    const calls = () =>
+      page.evaluate(() =>
+        Reflect.get(window, '__desktopCalls').filter((call: { command: string }) =>
+          ['install_package', 'configure_notepadpp', 'open_notepadpp_defaults'].includes(
+            call.command,
+          ),
+        ),
+      );
+    await expect.poll(calls).toEqual([
+      {
+        command: 'install_package',
+        args: {
+          id: 'notepadpp',
+          version: catalog.packages.find((pkg) => pkg.service === 'notepadpp')!.version,
+          addToPath: false,
+        },
+      },
+      ...(optIn
+        ? [
+            { command: 'configure_notepadpp', args: { enabled: true } },
+            { command: 'open_notepadpp_defaults', args: {} },
+          ]
+        : []),
+    ]);
+    const registration = drawer.getByRole('checkbox', {
+      name: 'Offer this portable Notepad++ in Windows Default apps',
+      exact: true,
+    });
+    await expect(registration).toBeChecked({ checked: optIn });
+    if (!optIn) {
+      await registration.focus();
+      await page.keyboard.press('Space');
+    }
+    await expect(registration).toBeChecked();
+    await drawer.getByRole('button', { name: 'Open Notepad++', exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Reflect.get(window, '__desktopCalls').some(
+            (call: { command: string }) => call.command === 'open_notepadpp',
+          ),
+        ),
+      )
+      .toBe(true);
+    await registration.focus();
+    await page.keyboard.press('Space');
+    await expect(
+      drawer.getByRole('button', { name: 'Choose extensions in Windows', exact: true }),
+    ).toBeDisabled();
+    await registration.focus();
+    await page.keyboard.press('Space');
+    await drawer
+      .getByRole('button', {
+        name: `Remove ${catalog.packages.find((pkg) => pkg.service === 'notepadpp')!.version}`,
+        exact: true,
+      })
+      .click();
+    const removal = page.getByRole('dialog', { name: 'Remove package', exact: true });
+    await removal.getByRole('button', { name: 'Remove package', exact: true }).click();
+    await expect(drawer.getByText('Not installed', { exact: true })).toBeVisible();
+    await expect(drawer.getByRole('button', { name: 'Open Notepad++', exact: true })).toHaveCount(
+      0,
+    );
+    await expect(
+      drawer.getByRole('checkbox', {
+        name: 'Offer this portable Notepad++ in Windows Default apps',
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  });
+}
+
+test('Notepad++ default-app settings failures can be retried after installation', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await page
+    .getByTestId('service-notepadpp')
+    .getByRole('button', { name: 'Install', exact: true })
+    .click();
+  const drawer = page.getByRole('dialog', { name: 'Notepad++ settings', exact: true });
+  await page.evaluate(() => Reflect.set(window, '__failEditorDefaults', true));
+  await drawer
+    .getByRole('checkbox', {
+      name: 'Choose Notepad++ as a default editor after installation',
+      exact: true,
+    })
+    .focus();
+  await page.keyboard.press('Space');
+  await drawer.getByRole('button', { name: 'Download & install', exact: true }).click();
+  await expect(drawer.getByRole('alert')).toContainText(
+    'Windows default-app settings could not be opened',
+  );
+  await expect(drawer.getByText('Ready', { exact: true })).toBeVisible();
+  await page.evaluate(() => Reflect.set(window, '__failEditorDefaults', false));
+  await drawer.getByRole('button', { name: 'Choose extensions in Windows', exact: true }).click();
+  await expect(drawer.getByRole('alert')).toHaveCount(0);
 });
 
 test('Node.js bundles npm and uses tool controls while PATH follows its selected version', async ({

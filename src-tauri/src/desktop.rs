@@ -48,13 +48,68 @@ impl From<CloseAction> for CloseBehavior {
     }
 }
 
-fn restore(app: &AppHandle) -> tauri::Result<()> {
+pub(crate) fn restore(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         window.show()?;
         window.unminimize()?;
         window.set_focus()?;
     }
     Ok(())
+}
+
+/// Normal installs share the per-user workspace; each portable folder has its
+/// own workspace and activation channel, independent of the working directory.
+pub(crate) fn instance_identifier(
+    identifier: &str,
+    executable: &std::path::Path,
+) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let executable = executable.canonicalize()?;
+    let directory = executable
+        .parent()
+        .ok_or_else(|| invalid("Executable has no parent directory"))?;
+    if !directory.join("larager.portable").is_file() {
+        return Ok(identifier.to_owned());
+    }
+    let scope = crate::storage::slash(directory).to_lowercase();
+    Ok(format!(
+        "{identifier}.portable.{}",
+        hex::encode(Sha256::digest(scope.as_bytes()))
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn activation_scope_is_shared_normally_and_isolated_by_portable_folder() {
+        let root = tempfile::tempdir().unwrap();
+        for folder in ["a", "b"] {
+            std::fs::create_dir(root.path().join(folder)).unwrap();
+            std::fs::write(root.path().join(folder).join("app.exe"), "fixture").unwrap();
+        }
+        let a = root.path().join("a/app.exe");
+        let b = root.path().join("b/app.exe");
+        assert_eq!(
+            instance_identifier("dev.openlarager.desktop", &a).unwrap(),
+            instance_identifier("dev.openlarager.desktop", &b).unwrap()
+        );
+        std::fs::write(root.path().join("a/larager.portable"), "").unwrap();
+        std::fs::write(root.path().join("b/larager.portable"), "").unwrap();
+        assert_ne!(
+            instance_identifier("dev.openlarager.desktop", &a).unwrap(),
+            instance_identifier("dev.openlarager.desktop", &b).unwrap()
+        );
+        std::fs::write(root.path().join("a/renamed.exe"), "fixture").unwrap();
+        assert_eq!(
+            instance_identifier("dev.openlarager.desktop", &a).unwrap(),
+            instance_identifier(
+                "dev.openlarager.desktop",
+                &root.path().join("a/renamed.exe")
+            )
+            .unwrap()
+        );
+    }
 }
 
 fn hide(app: &AppHandle) -> Result<()> {

@@ -134,6 +134,43 @@ try {
     await page.waitForFunction(() => window.scrollY === 0);
     await page.screenshot({ path: resolve(screenshot), fullPage: true });
   }
+  // Exercise real IPC log clearing against multiple versions and retained sites.
+  const logFixtures = [
+    'logs/php/old/process.log',
+    'logs/postgresql/old/postgresql.log',
+    'logs/sites/removed/access.log',
+  ];
+  for (const file of logFixtures) {
+    await mkdir(dirname(join(root, 'larager-data', file)), { recursive: true });
+    await writeFile(join(root, 'larager-data', file), 'old log contents\n');
+  }
+  await writeFile(join(root, 'larager-data/projects/protected.log'), 'project data');
+  await invoke('clear_logs', { id: 'php' });
+  assert.equal(await readFile(join(root, 'larager-data', logFixtures[0]), 'utf8'), '');
+  assert.equal(
+    await readFile(join(root, 'larager-data', logFixtures[1]), 'utf8'),
+    'old log contents\n',
+  );
+  if (!smokeOnly) {
+    await invoke('service_action', { id: 'mailpit', action: 'start' });
+    const before = (await invoke('get_snapshot')).services.find(
+      (service) => service.id === 'mailpit',
+    );
+    await invoke('clear_logs', { id: 'mailpit' });
+    const after = (await invoke('get_snapshot')).services.find(
+      (service) => service.id === 'mailpit',
+    );
+    assert.equal(after.pid, before.pid);
+    assert.equal(after.status, 'running');
+    await invoke('service_action', { id: 'mailpit', action: 'stop' });
+  }
+  await invoke('clear_logs', { id: null });
+  for (const file of logFixtures)
+    assert.equal(await readFile(join(root, 'larager-data', file), 'utf8'), '');
+  assert.equal(
+    await readFile(join(root, 'larager-data/projects/protected.log'), 'utf8'),
+    'project data',
+  );
   const stateBeforeReset = await invoke('get_snapshot');
   const configuration = join(root, 'larager-data/config/custom');
   await mkdir(configuration, { recursive: true });
@@ -228,16 +265,67 @@ public class TrayCheckWindow {
   const nativeWindow = (action) =>
     shell(
       `Add-Type -TypeDefinition '${windowHelper}'; ${
-        action === 'close'
-          ? `[TrayCheckWindow]::PostMessage([IntPtr]${handle}, 16, [IntPtr]::Zero, [IntPtr]::Zero)`
-          : `[TrayCheckWindow]::Restore(${child.pid})`
+        action === 'minimize'
+          ? `[TrayCheckWindow]::PostMessage([IntPtr]${handle}, 274, [IntPtr]61472, [IntPtr]::Zero)`
+          : action === 'close'
+            ? `[TrayCheckWindow]::PostMessage([IntPtr]${handle}, 16, [IntPtr]::Zero, [IntPtr]::Zero)`
+            : `[TrayCheckWindow]::Restore(${child.pid})`
       } | Out-Null`,
     );
   const visible = () => invoke('plugin:window|is_visible', { label: 'main' });
+  const minimized = () => invoke('plugin:window|is_minimized', { label: 'main' });
+  const reopenExecutable = async () => {
+    const before = await invoke('get_snapshot');
+    const second = spawn(executable, [], {
+      cwd: temporaryRoot, // Activation must not depend on the launch directory.
+      windowsHide: true,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    });
+    try {
+      const code = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          second.kill();
+          reject(new Error('Second launch did not hand off to the existing app'));
+        }, 15_000);
+        second.once('error', (error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+        second.once('exit', (code) => {
+          clearTimeout(timer);
+          resolve(code);
+        });
+      });
+      assert.equal(code, 0);
+      await expect.poll(visible).toBe(true);
+      await expect.poll(minimized).toBe(false);
+      assert.equal(exited, false, 'Reopening replaced or terminated the first process');
+      const after = await invoke('get_snapshot');
+      assert.equal(after.settings.revision, before.settings.revision);
+      assert.deepEqual(
+        after.services.map((service) => service.pid),
+        before.services.map((service) => service.pid),
+      );
+    } finally {
+      if (second.exitCode === null) second.kill();
+    }
+  };
   const restoreWindow = async () => {
     await nativeWindow('restore');
     await expect.poll(visible).toBe(true);
   };
+  if (!smokeOnly) {
+    const ports = [await freePort(), await freePort()];
+    while (ports[0] === ports[1]) ports[1] = await freePort();
+    const service = (await invoke('get_snapshot')).settings.services.mailpit;
+    await invoke('save_service', {
+      id: 'mailpit',
+      version: service.activeVersion,
+      ports,
+      autoStart: false,
+    });
+    await invoke('service_action', { id: 'mailpit', action: 'start' });
+  }
   const dialog = page.getByRole('dialog', { name: 'What would you like to do?', exact: true });
   assert.equal(initial.settings.closeBehavior, 'ask');
   await nativeWindow('close');
@@ -255,12 +343,15 @@ public class TrayCheckWindow {
     await expect.poll(visible).toBe(false);
     assert.equal(exited, false, 'Minimizing to the tray terminated the process');
     assert.equal((await invoke('get_snapshot')).settings.closeBehavior, remember ? 'tray' : 'ask');
-    await restoreWindow();
+    await reopenExecutable();
   }
   await nativeWindow('close');
   await expect.poll(visible).toBe(false);
   assert.equal(await invoke('get_close_request'), false);
   await restoreWindow();
+  await nativeWindow('minimize');
+  await expect.poll(minimized).toBe(true);
+  await reopenExecutable();
   await invoke('save_close_behavior', { behavior: 'ask' });
   await nativeWindow('close');
   await expect(dialog).toBeVisible();
@@ -274,8 +365,8 @@ public class TrayCheckWindow {
   assert.equal(stored.closeBehavior, 'exit');
   console.log(
     smokeOnly
-      ? 'Verified packaged WebView2, real IPC, portable storage, separate browser profile, configuration reset/backup/data preservation, close prompt/cancel, tray hiding, remembered preferences, and clean exit.'
-      : 'Verified packaged WebView2, real IPC, empty first run, portable storage, separate browser profile, Mailpit download/start/stop, local Monaco, configuration reset/backup/data preservation, close prompt/cancel, tray hiding, remembered preferences, and clean exit.',
+      ? 'Verified packaged WebView2, real IPC, portable storage, separate browser profile, scoped/all log clearing, configuration reset/backup/data preservation, close prompt/cancel, tray hiding, executable reactivation from hidden/minimized states, remembered preferences, and clean exit.'
+      : 'Verified packaged WebView2, real IPC, empty first run, portable storage, separate browser profile, Mailpit download/start/stop, log clearing with an active process, local Monaco, configuration reset/backup/data preservation, close prompt/cancel, tray hiding, executable reactivation from hidden/minimized states, remembered preferences, and clean exit.',
   );
 } finally {
   if (!exited) {

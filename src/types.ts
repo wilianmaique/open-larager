@@ -9,6 +9,7 @@ export const serviceIds = [
   'caddy',
   'nodejs',
   'composer',
+  'notepadpp',
 ] as const;
 export type ServiceId = (typeof serviceIds)[number];
 export type Page = 'overview' | 'services' | 'domains' | 'logs' | 'settings';
@@ -72,6 +73,7 @@ export interface Settings {
   closeBehavior: CloseBehavior;
   services: Record<ServiceId, ServiceSettings>;
   sites: Site[];
+  notepadpp: { registrationId: string | null; fileAssociations: boolean };
 }
 export interface ServiceStatus {
   id: ServiceId;

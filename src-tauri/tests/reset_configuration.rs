@@ -106,6 +106,14 @@ fn protected_files() -> BTreeMap<&'static str, Vec<u8>> {
         ("projects/site/index.php", b"user project".to_vec()),
         ("logs/mysql/1.0.0/mysql.log", b"user logs".to_vec()),
         ("secrets/mysql-1.0.0.bin", b"protected credentials".to_vec()),
+        (
+            "config/notepadpp/profile/config.xml",
+            b"editor preferences".to_vec(),
+        ),
+        (
+            "config/notepadpp/profile/backup/unsaved.txt",
+            b"unsaved editor buffer".to_vec(),
+        ),
     ]
     .into_iter()
     .collect()

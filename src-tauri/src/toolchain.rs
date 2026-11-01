@@ -97,6 +97,9 @@ fn managed_directory(storage: &Storage, path: PathBuf) -> Result<PathBuf> {
 }
 
 pub fn prepare(storage: &Storage, id: ServiceId, version: &str) -> Result<()> {
+    if id == ServiceId::Notepadpp {
+        return crate::notepadpp::prepare(storage, version);
+    }
     if id.is_daemon() && id != ServiceId::Php {
         return Ok(());
     }
@@ -116,6 +119,11 @@ pub fn prepare(storage: &Storage, id: ServiceId, version: &str) -> Result<()> {
 }
 
 pub fn layout(storage: &Storage, settings: &Settings, id: ServiceId) -> Result<CliLayout> {
+    if id == ServiceId::Notepadpp {
+        return Err(invalid(
+            "Notepad++ is a desktop tool and does not support PATH registration",
+        ));
+    }
     let version = active(settings, id)?;
     let mut layout = CliLayout {
         directories: Vec::new(),

@@ -205,4 +205,5 @@ export const descriptionKeys: Record<ServiceId, Key> = {
   caddy: 'descriptionCaddy',
   nodejs: 'descriptionNodejs',
   composer: 'descriptionComposer',
+  notepadpp: 'descriptionNotepadpp',
 };

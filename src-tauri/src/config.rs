@@ -195,7 +195,7 @@ CustomLog {} common
             }
             out
         }
-        ServiceId::Nodejs | ServiceId::Composer => {
+        ServiceId::Nodejs | ServiceId::Composer | ServiceId::Notepadpp => {
             return Err(invalid("This tool has no service configuration file"));
         }
     };

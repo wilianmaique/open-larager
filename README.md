@@ -4,7 +4,9 @@ Gerenciador de ambientes de desenvolvimento para **Windows 11 x64**, feito com T
 
 PHP, Node.js com npm/npx, Composer, Apache, MySQL, PostgreSQL, Nginx, Redis, Mailpit e o gateway HTTPS Caddy são baixados individualmente, conforme a escolha do usuário. Cada download é verificado pelo SHA-256 fixado no catálogo. As distribuições usam ZIP; Composer usa o PHAR oficial. Nenhum instalador desses componentes é executado e nenhum serviço do Windows é registrado.
 
-Ao fechar a janela, escolha **Minimizar na bandeja** para manter os serviços ativos ou **Sair do aplicativo** para aguardar as operações pendentes, parar os serviços e encerrar. **Lembrar minha escolha** aplica a decisão aos próximos fechamentos; altere em **Configurações → Ao fechar a janela**, incluindo **Perguntar sempre**. Clique no ícone da bandeja para restaurar a janela; o menu também oferece abrir e sair.
+Ao fechar a janela, escolha **Minimizar na bandeja** para manter os serviços ativos ou **Sair do aplicativo** para aguardar as operações pendentes, parar os serviços e encerrar. **Lembrar minha escolha** aplica a decisão aos próximos fechamentos; altere em **Configurações → Ao fechar a janela**, incluindo **Perguntar sempre**. Clique no ícone da bandeja ou abra novamente o `.exe` para restaurar e focar a janela existente, inclusive se estiver minimizada. O menu da bandeja também oferece abrir e sair. Cópias portáteis em pastas diferentes continuam independentes.
+
+Na página **Logs**, **Limpar logs** esvazia os arquivos `.log` de todas as versões do serviço selecionado; no Nginx, inclui os logs dos sites. **Limpar todos os logs** inclui também versões antigas, pacotes removidos e sites retidos. Ambas as ações pedem confirmação e preservam os arquivos para os processos continuarem gravando. Os serviços permanecem ativos e podem gerar novas entradas imediatamente. Bancos, projetos e configurações ficam fora dessa limpeza.
 
 Em **Configurações → Restaurar todas as configurações**, confira a lista de alterações e marque a confirmação. A ação para os serviços, restaura idioma/tema/fechamento e portas, desativa inicialização automática, remove somente as entradas de PATH pertencentes ao app, limpa domínios e regras e recria os arquivos em `config/` para todas as versões instaladas. Isso restaura também o `php.ini`, extensões padrão e o pacote público de CAs. Pacotes e versões ativas, projetos, bancos, logs, credenciais, CA local e localização do ambiente são preservados; `hosts` e confiança de certificados do Windows não são alterados. Para remover entradas antigas do `hosts` após limpar os domínios, use **Aplicar hosts** na página de domínios.
 
@@ -33,7 +35,7 @@ Resultado: `src-tauri/target/release/open-larager.exe`. O executável contém a 
 
 O workflow **Windows verification** verifica branches e pull requests. O **Windows release** roda ao enviar uma tag `vX.Y.Z`, reaproveita essas verificações e prepara um **rascunho** no GitHub Releases com instalador `.exe`, ZIP portátil e SHA-256. Para gerar somente o instalador localmente, use `pnpm desktop:bundle`.
 
-Para uma nova versão, execute `pnpm release:version 0.2.0`, revise e faça commit dos cinco arquivos de versão, envie o commit e depois a tag `v0.2.0`. Aguarde o workflow, revise os downloads em **Releases** e clique em **Publish release**. Tags como `v0.2.0-rc.1` são marcadas como pré-release. Veja o [passo a passo de publicação](docs/releasing.md), incluindo assinatura de código e validações pendentes.
+Para uma nova versão, execute `pnpm release:version 0.3.0`, revise e faça commit dos cinco arquivos de versão, envie o commit e depois a tag `v0.3.0`. Aguarde o workflow, revise os downloads em **Releases** e clique em **Publish release**. Tags como `v0.3.0-rc.1` são marcadas como pré-release. Veja o [passo a passo de publicação](docs/releasing.md), incluindo assinatura de código e validações pendentes.
 
 ## Primeiro projeto com HTTPS
 
@@ -55,6 +57,12 @@ O app preserva as demais opções do `php.ini`, ativa dependências incluídas q
 O `php.ini` inclui seções `[curl]` e `[openssl]`, com `curl.cainfo` e `openssl.cafile` apontando ao pacote público Mozilla em `config/certificates/mozilla-<data>.pem`. O arquivo acompanha o app com origem e SHA-256 fixados, licença MPL 2.0 e validação de integridade; sua preparação funciona offline. Instalações existentes recebem as diretivas ausentes ou vazias ao reabrir o app, com backup `php.previous`. Caminhos personalizados e as demais opções são preservados. CLI, subprocessos, Composer e FastCGI usam o mesmo `php.ini`; PHP já iniciado precisa ser reiniciado após uma alteração manual.
 
 A validação TLS permanece ativa. A CA local do Caddy e o armazenamento de certificados do Windows são independentes desse pacote público. Para proxy corporativo ou CA própria, use um PEM separado com as autoridades necessárias e configure explicitamente as duas diretivas; arquivos `mozilla-<data>.pem` são reservados ao app. Não edite o pacote fixado. Ao mover o ambiente pelo app, seus caminhos gerenciados são atualizados.
+
+## Notepad++ portátil
+
+Em **Serviços → Notepad++**, instale opcionalmente o ZIP portátil x64 oficial, verificado por SHA-256. O botão **Abrir Notepad++** usa a versão ativa com perfil separado em `config/notepadpp/profile/`. Preferências, sessões e cópias de documentos não salvos permanecem ao remover ou reinstalar o pacote e ao restaurar as configurações do gerenciador. Feche o editor antes de mover o ambiente. As atualizações dos binários passam pelo catálogo; o atualizador incluído no ZIP fica desabilitado.
+
+**Escolher Notepad++ como editor padrão após instalar** vem desmarcado. Se ativado, o app registra somente essa cópia portátil para o usuário atual e abre os [Aplicativos padrão do Windows](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-default-apps-settings), onde você confirma `.log`, `.txt`, `.cfg`, `.conf` e `.ini` individualmente. A mesma opção está disponível depois da instalação. Instalar sozinho não altera associações. O registro acompanha a versão ativa e mudanças de pasta feitas pelo app; desativá-lo ou remover a última versão retira apenas esse registro. Se ele era padrão, escolha outro editor no Windows. Antes de mover ou apagar o ambiente manualmente, desative o registro.
 
 ## Comandos no terminal
 

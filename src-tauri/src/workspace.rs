@@ -244,6 +244,7 @@ impl Workspace {
         };
         let result: Result<()> = (|| {
             user_path::relocate(&current.storage, current.settings.get_mut())?;
+            crate::notepadpp::sync(&current.storage, current.settings.get_mut())?;
             clean_source(&cleanup, &current.storage.root, processed)?;
             let complete = Location {
                 root: location.root.clone(),
@@ -657,7 +658,12 @@ fn rebase(
         let path = safe_join(&storage.root, &stamp.path)?;
         if stamp.path == Path::new("settings.json") {
             atomic_json(&path, settings)?;
-        } else if stamp.path.starts_with("config") && !stamp.path.starts_with("config/path") {
+        } else if stamp.path.starts_with("config")
+            && !stamp.path.starts_with("config/path")
+            && (!stamp.path.starts_with("config/notepadpp/profile")
+                || stamp.path == Path::new("config/notepadpp/profile/config.xml")
+                || stamp.path == Path::new("config/notepadpp/profile/session.xml"))
+        {
             let bytes = fs::read(&path).at(Op::Read, &path)?;
             // Config files are text, but preserve unknown binary assets verbatim.
             if let Ok(before) = String::from_utf8(bytes) {
@@ -904,6 +910,17 @@ mod tests {
         );
         let config = crate::php_tls::configure(&engine.storage, &config).unwrap();
         write(&source, "config/php/8.4.0/php.ini", config.as_bytes());
+        let unsaved = format!("This unsaved document mentions {old_root}/projects/site verbatim.");
+        write(
+            &source,
+            "config/notepadpp/profile/backup/unsaved.txt",
+            unsaved.as_bytes(),
+        );
+        write(
+            &source,
+            "config/notepadpp/profile/session.xml",
+            format!("<File filename=\"{old_root}/projects/site/index.php\" />").as_bytes(),
+        );
         write(
             &source,
             "config/redis/7.0.0/redis.conf",
@@ -960,6 +977,15 @@ mod tests {
         assert!(!source.exists());
         let engine = workspace.engine.read().await;
         let new_root = slash(&engine.storage.root);
+        assert_eq!(
+            fs::read_to_string(target.join("config/notepadpp/profile/backup/unsaved.txt")).unwrap(),
+            unsaved
+        );
+        assert!(
+            fs::read_to_string(target.join("config/notepadpp/profile/session.xml"))
+                .unwrap()
+                .contains(&new_root)
+        );
         assert_eq!(
             normalized(&engine.storage.root),
             normalized(&target.canonicalize().unwrap())

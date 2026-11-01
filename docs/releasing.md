@@ -14,21 +14,21 @@ O [runner Windows hospedado pelo GitHub usa administrador com UAC desabilitado](
 1. Na branch que será publicada, atualize a versão. O comando sincroniza `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` e a entrada do app em `src-tauri/Cargo.lock`, sem atualizar dependências:
 
    ```powershell
-   pnpm release:version 0.2.0
-   pnpm release:check v0.2.0
+   pnpm release:version 0.3.0
+   pnpm release:check v0.3.0
    ```
 
 2. Revise o diff, faça commit dos cinco arquivos e envie a branch. Use uma tag anotada no commit exato que quer distribuir:
 
    ```powershell
    git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
-   git commit -m "chore: release 0.2.0"
+   git commit -m "chore: release 0.3.0"
    git push origin HEAD
-   git tag -a v0.2.0 -m "Open Larager 0.2.0"
-   git push origin v0.2.0
+   git tag -a v0.3.0 -m "Open Larager 0.3.0"
+   git push origin v0.3.0
    ```
 
-   Para a primeira versão atual, `0.1.0`, basta conferir com `pnpm release:check v0.1.0` e enviar a tag correspondente depois de subir os workflows. Para testes públicos, use versões como `0.2.0-rc.1` ou `0.2.0-beta.1`; o rascunho será marcado como pré-release. A tag deve corresponder exatamente à versão dos cinco arquivos; divergências interrompem o workflow antes do build.
+   Para testes públicos, use versões como `0.3.0-rc.1` ou `0.3.0-beta.1`; o rascunho será marcado como pré-release. A tag deve corresponder exatamente à versão dos cinco arquivos; divergências interrompem o workflow antes do build.
 
 3. Em **Actions → Windows release**, aguarde a conclusão e abra o link do rascunho no resumo da execução. Os mesmos arquivos também ficam disponíveis como artifact por sete dias, inclusive se a etapa de criação do rascunho falhar.
 4. Em **Releases**, revise as notas e os arquivos, cumpra as validações e a assinatura abaixo e clique em **Publish release**. A partir daí, compartilhe a página do release para o público baixar. Antes de publicar, os assets do rascunho ficam restritos a quem tem acesso de escrita.
@@ -37,8 +37,8 @@ Os downloads são anexos do release, separados do código e dos artifacts tempor
 
 | Arquivo                                       | Uso                                                                    |
 | --------------------------------------------- | ---------------------------------------------------------------------- |
-| `Open-Larager_0.2.0_windows-x64-setup.exe`    | Instalador NSIS para o usuário atual.                                  |
-| `Open-Larager_0.2.0_windows-x64-portable.zip` | Executável e marcador `larager.portable`; extrair tudo antes de abrir. |
+| `Open-Larager_0.3.0_windows-x64-setup.exe`    | Instalador NSIS para o usuário atual.                                  |
+| `Open-Larager_0.3.0_windows-x64-portable.zip` | Executável e marcador `larager.portable`; extrair tudo antes de abrir. |
 | `SHA256SUMS.txt`                              | SHA-256 dos dois arquivos acima.                                       |
 
 O instalador e o ZIP contêm somente o gerenciador. WebView2 é pré-requisito; PHP, bancos e servidores continuam sendo baixados individualmente no app. Os arquivos **Source code** que o GitHub adiciona são o código-fonte, não o instalador.
@@ -65,7 +65,8 @@ Referências: [releases e rascunhos no GitHub](https://docs.github.com/en/reposi
    Para extensões PHP, executar `cargo test --test php_extensions -- --ignored --nocapture` em `src-tauri`. Validação interativa pendente em Windows 11 limpo e no executável empacotado: seleção e busca nos cinco idiomas, DLL incompatível, download cancelado, falta de runtime C++, interrupção durante recarga, falha de restauração e requisições FastCGI durante o reinício. O teste automatizado usa ambientes temporários com acentos e não altera instalações existentes.
 4. Teste encerramento normal, encerramento forçado, falta de espaço, download cancelado e nova abertura após uma instalação interrompida.
    Para **Restaurar todas as configurações**, validar no Windows 11 limpo: confirmação nos cinco idiomas, serviços reais de banco ativos, entradas de PATH externas/preexistentes, pouco espaço e interrupção antes/depois da gravação de settings.json. Testes automatizados cobrem backup, preservação de pacotes/dados, exclusões restritas a config/, rollback com arquivo bloqueado, recuperação de arquivo excluído, PATH simulado e recusa de junctions; o teste de desktop também exercita a confirmação e o reset por IPC em ambiente portátil temporário.
-   Para a bandeja, validar interativamente no Windows 11 limpo: clique e menu do ícone, restauração de janela minimizada, reinício do Explorer, cinco idiomas e saída com serviços reais ativos. A suíte automatizada cobre pergunta, cancelamento, preferência persistida, ocultação, restauração pelo evento nativo da bandeja e saída; esses cenários interativos continuam pendentes.
+   Para a bandeja, validar interativamente no Windows 11 limpo: clique e menu do ícone, reabertura pelo `.exe` e por atalhos, reinício do Explorer, cinco idiomas e saída com serviços reais ativos. A suíte de desktop cobre pergunta, cancelamento, preferência persistida, ocultação, restauração pelo evento nativo da bandeja, segunda execução do `.exe` com janela oculta ou minimizada e saída; esses cenários interativos continuam pendentes.
+   Para a limpeza de logs, a suíte Rust verifica escopo, arquivos em uso, preservação de dados e recusa de hard links/junctions. Playwright verifica confirmação, cancelamento, limpeza individual/geral, erros e atualização com leitura anterior pendente. `pnpm test:desktop` exercita IPC real, logs retidos e Mailpit ativo; `--smoke` dispensa servidores. Ainda validar limpeza com PHP e bancos reais ativos, logs muito grandes, falta de permissão e antivírus em Windows 11 limpo.
    Validação interativa pendente: abrir normalmente e como administrador, confirmar a reabertura com token filtrado e iniciar PostgreSQL; testar UAC aceito e cancelado para hosts. Contas sem token filtrado devem falhar sem iniciar serviços elevados. Conferir logs UTF-8 e na página ANSI do Windows, inclusive com acentos. Logs legados sem indicação de codificação usam a página ANSI local quando não são UTF-8 válidos.
 5. Teste os arquivos gerados pelo workflow. Para builds locais, `pnpm desktop:build` gera `src-tauri/target/release/open-larager.exe`; `pnpm desktop:bundle` também gera o instalador NSIS. Verifique instalação, atualização e desinstalação do gerenciador, preservando o ambiente do usuário. Esses cenários do instalador ainda exigem validação interativa em Windows 11 limpo.
    O bundler avisa que o Tauri ainda não fornece suas mensagens próprias do NSIS em Hindi. Revisar essas mensagens e fornecer `customLanguageFiles` antes de declarar o instalador integralmente traduzido nos cinco idiomas.
@@ -73,6 +74,8 @@ Referências: [releases e rascunhos no GitHub](https://docs.github.com/en/reposi
 7. Publique SHA-256 do executável e notas com versões do catálogo, alterações de formato de dados e requisitos. Confira as licenças das distribuições: os serviços não são redistribuídos no binário, mas suas licenças continuam aplicáveis ao download e uso.
 
 ## Atualizar distribuições
+
+Para o Notepad++, executar `cargo test --test notepadpp -- --include-ignored` em `src-tauri` para verificar download, integridade, layout portátil e preservação do perfil na remoção/reinstalação. A suíte normal testa o registro em uma chave HKCU isolada, sem mudar associações reais; Playwright cobre instalação opcional, configuração e erros em desktop/mobile. Continua pendente validar interativamente em Windows 11 limpo: abertura real do editor, escolha de cada extensão nos Aplicativos padrão, coexistência com outro Notepad++, atualização de versão/pasta e comportamento do Windows após remover um editor que era padrão.
 
 `pnpm certificates:refresh` atualiza o pacote público Mozilla a partir da revisão datada do curl, verifica o SHA-256 publicado e grava o PEM e `catalog/ca-bundle.json`. Revise as mudanças nas autoridades antes da release e execute `pnpm certificates:check`; o app não baixa atualizações de confiança em tempo de execução. O teste real `cargo test --test php_tls -- --include-ignored --nocapture`, em `src-tauri`, verifica cURL e streams OpenSSL com Google/Steam, rejeição de certificado autoassinado, CLI, FastCGI e mudança para pasta com acentos, sem alterar a confiança do Windows. Proxies corporativos, CA personalizada e uso com logins reais ainda exigem validação específica no ambiente correspondente.
 

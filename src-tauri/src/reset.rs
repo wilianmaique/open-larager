@@ -52,6 +52,7 @@ fn scan(
     directory: &Path,
     files: &mut BTreeMap<PathBuf, Vec<u8>>,
     bytes: &mut usize,
+    preserve: &Path,
     depth: usize,
 ) -> Result<()> {
     if depth > 64 || files.len() > 10000 {
@@ -62,9 +63,14 @@ fn scan(
     regular(directory)?;
     for entry in fs::read_dir(directory).at(Op::Inspect, directory)? {
         let path = entry.at(Op::Inspect, directory)?.path();
+        if path == preserve {
+            // External editor sessions can include large unsaved documents.
+            // They are outside the manager reset and its size-limited backup.
+            continue;
+        }
         let metadata = regular(&path)?;
         if metadata.is_dir() {
-            scan(&path, files, bytes, depth + 1)?;
+            scan(&path, files, bytes, preserve, depth + 1)?;
         } else {
             if files.len() >= 10000 {
                 return Err(invalid(
@@ -89,7 +95,13 @@ fn scan(
 
 fn snapshot(storage: &Storage) -> Result<BTreeMap<PathBuf, Vec<u8>>> {
     let mut files = BTreeMap::new();
-    scan(&storage.root.join("config"), &mut files, &mut 0, 0)?;
+    scan(
+        &storage.root.join("config"),
+        &mut files,
+        &mut 0,
+        &storage.root.join("config/notepadpp/profile"),
+        0,
+    )?;
     Ok(files)
 }
 
@@ -118,6 +130,11 @@ pub(crate) fn prepare(storage: &Storage, current: &Settings) -> Result<ResetPlan
         ..Settings::default()
     };
     let mut writes = Vec::new();
+    // Keep the identity for removing/recovering only this environment's registry entries.
+    settings
+        .notepadpp
+        .registration_id
+        .clone_from(&current.notepadpp.registration_id);
     for id in ServiceId::ALL {
         let service = settings.services.get_mut(&id).unwrap();
         service.installations = current.services[&id].installations.clone();
@@ -158,7 +175,10 @@ pub(crate) fn prepare(storage: &Storage, current: &Settings) -> Result<ResetPlan
     let removals = files
         .keys()
         .filter(|path| {
-            **path != registrations && !writes.iter().any(|(written, _)| written == *path)
+            **path != registrations
+                // The external editor profile can contain unsaved document backups.
+                && !path.starts_with(storage.root.join("config/notepadpp/profile"))
+                && !writes.iter().any(|(written, _)| written == *path)
         })
         .cloned()
         .collect();

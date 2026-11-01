@@ -1,3 +1,10 @@
+## Novidades
+
+- Notepad++ portátil x64 opcional, com download oficial verificado por SHA-256, perfil preservado e escolha de extensões padrão pelo Windows.
+- Abrir novamente o `.exe` restaura e foca a janela que estava na bandeja ou minimizada, preservando os serviços ativos.
+- Limpeza individual e geral dos logs, com confirmação, preservação dos arquivos em uso e proteção de bancos, projetos e configurações.
+- Novos controles traduzidos nos cinco idiomas da interface.
+
 ## Downloads para Windows 11 x64
 
 - **`windows-x64-setup.exe`**: instalador do Open Larager para o usuário atual.

@@ -15,6 +15,7 @@ pub enum ServiceId {
     Caddy,
     Nodejs,
     Composer,
+    Notepadpp,
 }
 
 /// Shared with React. Only this compiled registry defines package capabilities.
@@ -31,7 +32,7 @@ pub struct ServiceDefinition {
 }
 
 impl ServiceId {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Php,
         Self::Apache,
         Self::Mysql,
@@ -42,6 +43,7 @@ impl ServiceId {
         Self::Caddy,
         Self::Nodejs,
         Self::Composer,
+        Self::Notepadpp,
     ];
     pub fn key(self) -> &'static str {
         match self {
@@ -55,6 +57,7 @@ impl ServiceId {
             Self::Caddy => "caddy",
             Self::Nodejs => "nodejs",
             Self::Composer => "composer",
+            Self::Notepadpp => "notepadpp",
         }
     }
     pub fn definition(self) -> &'static ServiceDefinition {
@@ -181,6 +184,15 @@ pub struct Settings {
     pub close_behavior: CloseBehavior,
     pub services: BTreeMap<ServiceId, ServiceSettings>,
     pub sites: Vec<Site>,
+    #[serde(default)]
+    pub notepadpp: NotepadppSettings,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotepadppSettings {
+    pub registration_id: Option<String>,
+    pub file_associations: bool,
 }
 
 impl Default for Settings {
@@ -192,6 +204,7 @@ impl Default for Settings {
             theme: "system".into(),
             close_behavior: CloseBehavior::Ask,
             sites: Vec::new(),
+            notepadpp: NotepadppSettings::default(),
             services: ServiceId::ALL
                 .into_iter()
                 .map(|id| {

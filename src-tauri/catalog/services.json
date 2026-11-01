@@ -122,6 +122,19 @@
       "node_modules/npm/bin/npx-cli.js"
     ]
   },
+  "notepadpp": {
+    "name": "Notepad++",
+    "category": "tools",
+    "mark": "N++",
+    "color": "#658b35",
+    "daemon": false,
+    "ports": [],
+    "executable": "notepad++.exe",
+    "cli": "",
+    "configName": null,
+    "dependencies": [],
+    "requiredFiles": ["notepad++.exe", "doLocalConf.xml", "disableNppAutoUpdate.xml"]
+  },
   "composer": {
     "name": "Composer",
     "category": "tools",

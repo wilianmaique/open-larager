@@ -2391,6 +2391,12 @@ progress::-webkit-progress-value {
   width: auto;
   max-width: 100%;
 }
+.logs-page-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .logs-page-panel {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -2417,6 +2423,7 @@ progress::-webkit-progress-value {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 .logs-toolbar .checkbox {
   font-size: 10px;

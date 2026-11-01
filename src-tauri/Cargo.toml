@@ -1,6 +1,6 @@
 [package]
 name = "open-larager"
-version = "0.2.0"
+version = "0.3.0"
 description = "A portable local development environment manager for Windows"
 authors = ["Open Larager contributors"]
 edition = "2024"
@@ -32,6 +32,7 @@ uuid = { version = "1", features = ["v4"] }
 sys-locale = "0.3.2"
 thiserror = "2"
 fs2 = "0.4"
+tauri-plugin-single-instance = "2.5.5"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

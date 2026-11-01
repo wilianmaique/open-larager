@@ -6,8 +6,10 @@ pub mod error;
 pub mod file_diagnostics;
 pub mod hosts;
 pub mod installer;
+pub mod logs;
 pub mod model;
 pub mod move_progress;
+pub mod notepadpp;
 pub mod php_extensions;
 pub mod php_tls;
 pub mod platform;
@@ -67,6 +69,23 @@ async fn set_user_path(
 ) -> Result<()> {
     let engine = engine.engine.read().await;
     engine.set_user_path(id, enabled).await
+}
+#[tauri::command]
+async fn open_notepadpp(engine: State<'_, Arc<Workspace>>) -> Result<()> {
+    engine.engine.read().await.open_notepadpp().await
+}
+#[tauri::command]
+async fn configure_notepadpp(engine: State<'_, Arc<Workspace>>, enabled: bool) -> Result<()> {
+    engine
+        .engine
+        .read()
+        .await
+        .configure_notepadpp(enabled)
+        .await
+}
+#[tauri::command]
+async fn open_notepadpp_defaults(engine: State<'_, Arc<Workspace>>) -> Result<()> {
+    engine.engine.read().await.open_notepadpp_defaults().await
 }
 #[tauri::command]
 async fn cancel_install(engine: State<'_, Arc<Workspace>>, id: ServiceId) -> Result<()> {
@@ -147,6 +166,15 @@ async fn set_php_extension(
 async fn read_logs(engine: State<'_, Arc<Workspace>>, id: ServiceId) -> Result<String> {
     let engine = engine.engine.read().await;
     engine.logs(id).await
+}
+#[tauri::command]
+async fn clear_logs(engine: State<'_, Arc<Workspace>>, id: Option<ServiceId>) -> Result<usize> {
+    let workspace = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        tauri::async_runtime::block_on(async { workspace.engine.read().await.clear_logs(id).await })
+    })
+    .await
+    .map_err(|error| error::invalid(error.to_string()))?
 }
 #[tauri::command]
 async fn reveal_credentials(
@@ -314,7 +342,18 @@ pub fn run() {
             std::process::exit(1);
         }
     }
+    let mut context = tauri::generate_context!();
+    context.config_mut().identifier = desktop::instance_identifier(
+        &context.config().identifier,
+        &std::env::current_exe().expect("Executable path is unavailable"),
+    )
+    .expect("Unable to identify this application instance");
     tauri::Builder::default()
+        // Detect activation before acquiring workspace locks or creating WebView2.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // Incoming arguments are deliberately not interpreted as commands.
+            let _ = desktop::restore(app);
+        }))
         .manage(desktop::Desktop::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -375,6 +414,9 @@ pub fn run() {
             get_snapshot,
             get_catalog,
             install_package,
+            open_notepadpp,
+            configure_notepadpp,
+            open_notepadpp_defaults,
             get_path_status,
             set_user_path,
             cancel_install,
@@ -387,6 +429,7 @@ pub fn run() {
             get_php_extensions,
             set_php_extension,
             read_logs,
+            clear_logs,
             reveal_credentials,
             save_preferences,
             save_site,
@@ -417,6 +460,6 @@ pub fn run() {
                 desktop::request_close(window.app_handle().clone());
             }
         })
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("Unable to start Open Larager");
 }

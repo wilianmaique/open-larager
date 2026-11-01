@@ -92,6 +92,13 @@ for (const [service, repo, pattern, archiveRoot, community] of [
   ['mailpit', 'axllent/mailpit', /mailpit-windows-amd64\.zip$/, '', false],
   ['caddy', 'caddyserver/caddy', /_windows_amd64\.zip$/, '', false],
   ['redis', 'redis-windows/redis-windows', /Windows-x64-msys2\.zip$/, '', true],
+  [
+    'notepadpp',
+    'notepad-plus-plus/notepad-plus-plus',
+    /^npp\.[\d.]+\.portable\.x64\.zip$/,
+    '',
+    false,
+  ],
 ]) {
   const releases = await json(`https://api.github.com/repos/${repo}/releases?per_page=8`);
   let count = 0;
