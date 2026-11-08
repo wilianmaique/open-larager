@@ -8,6 +8,7 @@ export const serviceIds = [
   'mailpit',
   'caddy',
   'nodejs',
+  'python',
   'composer',
   'notepadpp',
 ] as const;

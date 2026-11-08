@@ -13,6 +13,7 @@ pub mod notepadpp;
 pub mod php_extensions;
 pub mod php_tls;
 pub mod platform;
+pub mod python;
 pub mod reset;
 pub mod sites;
 pub mod storage;

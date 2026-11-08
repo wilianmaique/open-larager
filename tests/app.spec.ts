@@ -340,8 +340,8 @@ async function mockNative(page: Page) {
               if (status) status.version = service.activeVersion;
             } else if (command === 'get_path_status') {
               const directory = service.activeVersion
-                ? id === 'php'
-                  ? 'C:\\Larager\\config\\cli\\php'
+                ? id === 'php' || id === 'python'
+                  ? `C:\\Larager\\config\\cli\\${id}`
                   : `C:\\Larager\\packages\\${id}\\${service.activeVersion}`
                 : null;
               return {
@@ -349,9 +349,9 @@ async function mockNative(page: Page) {
                 present: service.addToPath,
                 directory,
                 version: service.activeVersion,
-                command: id === 'php' ? 'php.cmd' : `${id}.exe`,
+                command: id === 'php' || id === 'python' ? `${id}.cmd` : `${id}.exe`,
                 firstMatch: service.addToPath
-                  ? `${directory}\\${id}.${id === 'php' ? 'cmd' : 'exe'}`
+                  ? `${directory}\\${id}.${id === 'php' || id === 'python' ? 'cmd' : 'exe'}`
                   : null,
                 shadowed: false,
                 external: false,
@@ -1139,6 +1139,60 @@ test('Node.js bundles npm and uses tool controls while PATH follows its selected
   await expect(
     page.getByRole('combobox', { name: 'Select a service', exact: true }),
   ).toBeDisabled();
+});
+
+test('Python provides versioned pip and venv with optional PATH and preserved removal controls', async ({
+  page,
+}) => {
+  await mockNative(page);
+  await page.goto('/');
+  await page
+    .getByTestId('service-python')
+    .getByRole('button', { name: 'Install', exact: true })
+    .click();
+  const drawer = page.getByRole('dialog', { name: 'Python settings', exact: true });
+  const versions = catalog.packages.filter((pkg) => pkg.service === 'python');
+  await expect(drawer.getByText('python -m venv .venv', { exact: true })).toBeVisible();
+  await expect(drawer.getByText(/python, python3, pip and pip3 follow/)).toBeVisible();
+  await expect(drawer.getByRole('tab')).toHaveCount(1);
+  await expect(drawer.getByRole('spinbutton')).toHaveCount(0);
+  const register = drawer.getByRole('checkbox', {
+    name: 'Add the active version to my user PATH',
+    exact: true,
+  });
+  await expect(register).not.toBeChecked();
+  await register.focus();
+  await page.keyboard.press('Space');
+  await drawer.getByRole('button', { name: 'Download & install', exact: true }).click();
+  await expect(drawer.getByText('Ready', { exact: true })).toBeVisible();
+  await expect(drawer.locator('.path-section')).toContainText('C:\\Larager\\config\\cli\\python');
+  await expect(drawer.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
+  await expect(
+    drawer.getByRole('checkbox', { name: 'Start when Open Larager opens', exact: true }),
+  ).toHaveCount(0);
+  await drawer.getByRole('combobox', { name: 'Choose a version', exact: true }).click();
+  await drawer.getByRole('option', { name: versions[1].version, exact: true }).click();
+  await drawer.getByRole('button', { name: 'Download & install', exact: true }).click();
+  await expect(
+    drawer.getByText(`Active version for PATH: Python ${versions[0].version}`, { exact: true }),
+  ).toBeVisible();
+  await drawer.getByRole('combobox', { name: 'Active version', exact: true }).click();
+  await drawer.getByRole('option', { name: versions[1].version, exact: true }).click();
+  await drawer.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(
+    drawer.getByText(`Active version for PATH: Python ${versions[1].version}`, { exact: true }),
+  ).toBeVisible();
+  await drawer.getByRole('button', { name: `Remove ${versions[1].version}`, exact: true }).click();
+  const removal = page.getByRole('dialog', { name: 'Remove package', exact: true });
+  await expect(removal).toContainText(dictionaries.en.keepData);
+  await removal.getByRole('button', { name: 'Remove package', exact: true }).click();
+  await expect(
+    drawer.getByText(`Active version for PATH: Python ${versions[0].version}`, { exact: true }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await drawer.screenshot({ path: test.info().outputPath('python-service.png') });
 });
 
 test('Composer installation is independent and PATH requires the selected PHP', async ({

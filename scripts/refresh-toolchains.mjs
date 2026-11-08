@@ -1,8 +1,10 @@
 // Shared by the full catalog refresh and the focused toolchain refresh.
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { refreshPython } from './refresh-python.mjs';
 
 export async function refreshToolchains({ json, text, add }) {
+  await refreshPython({ json, add });
   const releases = await json('https://nodejs.org/dist/index.json');
   const compatible = releases.filter((release) => release.files.includes('win-x64-zip'));
   const ltsMajors = [
@@ -79,7 +81,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     },
   });
   catalog.packages = [
-    ...catalog.packages.filter((pkg) => !['nodejs', 'composer'].includes(pkg.service)),
+    ...catalog.packages.filter((pkg) => !['nodejs', 'python', 'composer'].includes(pkg.service)),
     ...packages,
   ];
   catalog.generatedAt = new Date().toISOString();

@@ -32,6 +32,12 @@ async fn configured(root: &Path) -> Engine {
                 );
             }
         }
+        if id == ServiceId::Python {
+            write(
+                &larager::python::environment(&engine.storage, version).join("Scripts/python.exe"),
+                b"environment fixture",
+            );
+        }
         let service = settings.services.get_mut(&id).unwrap();
         service.active_version = Some(version.into());
         service.installations.push(Installation {

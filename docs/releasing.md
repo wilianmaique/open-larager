@@ -81,7 +81,9 @@ Para o Notepad++, executar `cargo test --test notepadpp -- --include-ignored` em
 
 `pnpm catalog:refresh` consulta os distribuidores e gera o catálogo completo. Para pacotes sem SHA-256 publicado, o script baixa o arquivo oficial para calcular o hash sem armazenar o ZIP no repositório. Uma falha mantém o catálogo anterior.
 
-`node scripts/refresh-toolchains.mjs` atualiza somente Node.js e Composer, preservando os demais pacotes. Ambos usam checksums publicados; o npm acompanha a versão declarada pela distribuição do Node.js.
+`node scripts/refresh-toolchains.mjs` atualiza Node.js, Python e Composer, preservando os demais pacotes. Os três usam checksums publicados; o npm acompanha a versão declarada pela distribuição do Node.js. `node scripts/refresh-python.mjs` atualiza somente as três linhas estáveis mais recentes do Python com ZIP completo x64.
+
+Para Python, execute `cargo test --test python -- --include-ignored --nocapture` em `src-tauri`: baixa duas versões fixadas, verifica pip, venv de projeto, instalação de wheel local, PowerShell/CMD em caminho Unicode, troca de versão e preservação na remoção/reinstalação. Antes da release, validar também no executável empacotado em Windows 11 limpo: PATH opcional, aliases da Microsoft Store, coexistência com outro Python, políticas de ativação do PowerShell e recriação de ambientes de projeto/ferramentas de console após mover a pasta. Esses cenários interativos permanecem pendentes.
 
 `pnpm catalog:extensions` atualiza apenas os builds PECL do catálogo de extensões para as linhas PHP já selecionadas. Baixa os ZIPs oficiais para fixar SHA-256, sem incluí-los no repositório. A ausência de um build desabilita essa combinação, sem escolher outra ABI. Revise o catálogo e execute o teste real após cada atualização.
 

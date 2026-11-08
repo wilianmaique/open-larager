@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T10:30:09.587Z",
+  "generatedAt": "2026-11-08T02:45:47.343Z",
   "architecture": "windows-x86_64",
   "packages": [
     {
@@ -266,6 +266,45 @@
       "format": "zip",
       "source": "Notepad++",
       "sourceUrl": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/tag/v8.9.8.1",
+      "verification": "publisher-sha256"
+    },
+    {
+      "community": false,
+      "size": 37272560,
+      "service": "python",
+      "version": "3.15.2",
+      "url": "https://www.python.org/ftp/python/3.15.2/python-3.15.2-amd64.zip",
+      "sha256": "d6da9c33a32cf111e1d52b91392c83ea6a808545b646e0557f66cb6d9ee76785",
+      "archiveRoot": "",
+      "format": "zip",
+      "source": "Python Software Foundation",
+      "sourceUrl": "https://www.python.org/downloads/windows/",
+      "verification": "publisher-sha256"
+    },
+    {
+      "community": false,
+      "size": 32987388,
+      "service": "python",
+      "version": "3.14.10",
+      "url": "https://www.python.org/ftp/python/3.14.10/python-3.14.10-amd64.zip",
+      "sha256": "cc28026a650970cc1570bb127312f1f9634eb67abfe157ae6ca1acbbc627d091",
+      "archiveRoot": "",
+      "format": "zip",
+      "source": "Python Software Foundation",
+      "sourceUrl": "https://www.python.org/downloads/windows/",
+      "verification": "publisher-sha256"
+    },
+    {
+      "community": false,
+      "size": 31162518,
+      "service": "python",
+      "version": "3.13.17",
+      "url": "https://www.python.org/ftp/python/3.13.17/python-3.13.17-amd64.zip",
+      "sha256": "b26ca4b4ee51e157836049934d2b8eabd55939be296f3130254251b6df96ec2f",
+      "archiveRoot": "",
+      "format": "zip",
+      "source": "Python Software Foundation",
+      "sourceUrl": "https://www.python.org/downloads/windows/",
       "verification": "publisher-sha256"
     }
   ]

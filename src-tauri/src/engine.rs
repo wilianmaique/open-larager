@@ -310,6 +310,13 @@ impl Engine {
         }
         self.storage.prepare(id, &version)?;
         toolchain::prepare(&self.storage, id, &version)?;
+        if id == ServiceId::Python
+            && let Err(error) = crate::python::initialize(&self.storage, &version).await
+        {
+            // Keep the separate environment for recovery, but do not advertise a broken install.
+            let _ = fs::remove_dir_all(&destination);
+            return Err(error);
+        }
         if id == ServiceId::Php {
             config::ensure(&self.storage, id, &version, &settings)?;
         }
@@ -778,7 +785,7 @@ impl Engine {
                     .args(["--adapter", "caddyfile"]);
                 self.caddy_env(&mut cmd);
             }
-            ServiceId::Nodejs | ServiceId::Composer | ServiceId::Notepadpp => {
+            ServiceId::Nodejs | ServiceId::Python | ServiceId::Composer | ServiceId::Notepadpp => {
                 return Err(invalid("Terminal tools cannot be started as services"));
             }
         }
@@ -1181,7 +1188,7 @@ impl Engine {
                 self.caddy_env(&mut cmd);
             }
             ServiceId::Redis => return Ok(()), // Redis provides no offline validator; startup reports parser errors.
-            ServiceId::Nodejs | ServiceId::Composer | ServiceId::Notepadpp => {
+            ServiceId::Nodejs | ServiceId::Python | ServiceId::Composer | ServiceId::Notepadpp => {
                 return Err(invalid("This tool has no service configuration file"));
             }
         }

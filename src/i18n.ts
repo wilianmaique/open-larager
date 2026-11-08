@@ -146,6 +146,11 @@ export const en = {
   managePhp: 'Manage PHP',
   bundledTool: 'Included: {name} {version}',
   descriptionNodejs: 'Node.js with its matching npm and npx.',
+  descriptionPython: 'Full Python runtime with pip and virtual environments.',
+  pythonPipHelp:
+    'python, python3, pip and pip3 follow the active version. Each version keeps its packages, pip configuration and cache separately, outside the runtime binaries. Removing Python preserves this data.',
+  pythonVenvHelp:
+    'Create a separate virtual environment for each project and activate .venv\\Scripts\\Activate.ps1 in PowerShell or .venv\\Scripts\\activate.bat in CMD. Project environments keep their original Python version. Recreate them and reinstall console tools after moving the environment folder.',
   descriptionComposer: 'PHP dependencies with the active PHP version.',
   descriptionNotepadpp: 'Optional portable editor for text, logs and configuration files.',
   portableTool: 'Portable editor',
@@ -596,6 +601,11 @@ const pt: Dictionary = {
   managePhp: 'Gerenciar PHP',
   bundledTool: 'Incluído: {name} {version}',
   descriptionNodejs: 'Node.js com npm e npx da mesma distribuição.',
+  descriptionPython: 'Python completo com pip e ambientes virtuais.',
+  pythonPipHelp:
+    'python, python3, pip e pip3 acompanham a versão ativa. Cada versão mantém suas bibliotecas, configuração do pip e cache separados dos binários. Remover o Python preserva esses dados.',
+  pythonVenvHelp:
+    'Crie um ambiente virtual por projeto e ative .venv\\Scripts\\Activate.ps1 no PowerShell ou .venv\\Scripts\\activate.bat no CMD. Os ambientes de projeto mantêm sua versão original do Python. Recrie-os e reinstale ferramentas de console após mover a pasta do ambiente.',
   descriptionComposer: 'Dependências PHP com a versão ativa do PHP.',
   descriptionNotepadpp: 'Editor portátil opcional para textos, logs e arquivos de configuração.',
   portableTool: 'Editor portátil',
@@ -1045,6 +1055,11 @@ const es: Dictionary = {
   managePhp: 'Gestionar PHP',
   bundledTool: 'Incluido: {name} {version}',
   descriptionNodejs: 'Node.js con su npm y npx correspondientes.',
+  descriptionPython: 'Python completo con pip y entornos virtuales.',
+  pythonPipHelp:
+    'python, python3, pip y pip3 siguen la versión activa. Cada versión conserva sus paquetes, configuración de pip y caché fuera de los binarios. Quitar Python conserva estos datos.',
+  pythonVenvHelp:
+    'Crea un entorno virtual por proyecto y activa .venv\\Scripts\\Activate.ps1 en PowerShell o .venv\\Scripts\\activate.bat en CMD. Los entornos de proyecto mantienen su versión original de Python. Vuelve a crearlos y reinstala las herramientas de consola después de mover la carpeta del entorno.',
   descriptionComposer: 'Dependencias PHP con la versión activa de PHP.',
   descriptionNotepadpp:
     'Editor portátil opcional para texto, registros y archivos de configuración.',
@@ -1475,6 +1490,11 @@ const zh: Dictionary = {
   managePhp: '管理 PHP',
   bundledTool: '包含：{name} {version}',
   descriptionNodejs: 'Node.js 及其配套的 npm 和 npx。',
+  descriptionPython: '完整的 Python，包含 pip 和虚拟环境。',
+  pythonPipHelp:
+    'python、python3、pip 和 pip3 随活动版本切换。各版本的第三方包、pip 配置和缓存独立保存在运行时二进制目录之外。移除 Python 会保留这些数据。',
+  pythonVenvHelp:
+    '为每个项目创建虚拟环境，在 PowerShell 中运行 .venv\\Scripts\\Activate.ps1，在 CMD 中运行 .venv\\Scripts\\activate.bat。项目环境保持其原有 Python 版本。移动环境文件夹后，请重新创建项目环境并重新安装命令行工具。',
   descriptionComposer: '使用活动 PHP 版本管理 PHP 依赖。',
   descriptionNotepadpp: '可选的便携编辑器，用于文本、日志和配置文件。',
   portableTool: '便携编辑器',
@@ -1898,6 +1918,11 @@ const hi: Dictionary = {
   managePhp: 'PHP प्रबंधित करें',
   bundledTool: 'शामिल: {name} {version}',
   descriptionNodejs: 'Node.js के साथ उसी वितरण के npm और npx।',
+  descriptionPython: 'pip और वर्चुअल एनवायरनमेंट के साथ पूर्ण Python।',
+  pythonPipHelp:
+    'python, python3, pip और pip3 सक्रिय संस्करण का उपयोग करते हैं। हर संस्करण के पैकेज, pip कॉन्फ़िगरेशन और कैश बाइनरी से अलग रखे जाते हैं। Python हटाने पर यह डेटा सुरक्षित रहता है।',
+  pythonVenvHelp:
+    'हर प्रोजेक्ट के लिए अलग वर्चुअल एनवायरनमेंट बनाएँ और PowerShell में .venv\\Scripts\\Activate.ps1 या CMD में .venv\\Scripts\\activate.bat चलाएँ। प्रोजेक्ट एनवायरनमेंट अपना मूल Python संस्करण रखते हैं। एनवायरनमेंट फ़ोल्डर स्थानांतरित करने के बाद उन्हें दोबारा बनाएँ और कंसोल टूल फिर से इंस्टॉल करें।',
   descriptionComposer: 'सक्रिय PHP संस्करण से PHP डिपेंडेंसी प्रबंधन।',
   descriptionNotepadpp: 'टेक्स्ट, लॉग और कॉन्फ़िगरेशन फ़ाइलों के लिए वैकल्पिक पोर्टेबल संपादक।',
   portableTool: 'पोर्टेबल संपादक',

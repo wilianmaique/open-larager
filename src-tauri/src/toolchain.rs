@@ -107,6 +107,7 @@ pub fn prepare(storage: &Storage, id: ServiceId, version: &str) -> Result<()> {
     fs::create_dir_all(launcher)?;
     for sub in match id {
         ServiceId::Nodejs => &["global", "cache"][..],
+        ServiceId::Python => &["environment", "cache/pip", "cache/bytecode"][..],
         ServiceId::Composer => &["home/vendor/bin", "cache"][..],
         _ => &[],
     } {
@@ -114,6 +115,12 @@ pub fn prepare(storage: &Storage, id: ServiceId, version: &str) -> Result<()> {
             storage,
             storage.data(id, version).join(sub),
         )?)?;
+    }
+    if id == ServiceId::Python {
+        let pip = storage.config_dir(id, version).join("pip.ini");
+        if !pip.exists() {
+            crate::storage::atomic_write(&pip, b"# Open Larager defaults.\n")?;
+        }
     }
     Ok(())
 }
@@ -186,6 +193,42 @@ pub fn layout(storage: &Storage, settings: &Settings, id: ServiceId) -> Result<C
                         launcher_path(storage, &script)?
                     );
                     let file = launcher.join(format!("{name}.cmd"));
+                    layout.commands.push((format!("{name}.cmd"), file.clone()));
+                    layout.files.push((file, content));
+                }
+            }
+            ServiceId::Python => {
+                // Check the selected pinned base as well as the separate mutable environment.
+                package_file(storage, settings, id, "python.exe")?;
+                let environment =
+                    managed_directory(storage, crate::python::environment(storage, version))?;
+                let scripts = managed_directory(storage, environment.join("Scripts"))?;
+                let python = scripts.join("python.exe");
+                if !python.is_file() {
+                    return Err(invalid(
+                        "Python environment is incomplete; reinstall this version",
+                    ));
+                }
+                layout.directories.push(scripts.clone());
+                let setup = format!(
+                    "{HEADER}set \"PYTHONHOME=\"\r\nset \"PYTHONPATH=\"\r\nset \"PYTHONNOUSERSITE=1\"\r\nset \"VIRTUAL_ENV={}\"\r\nset \"PIP_CONFIG_FILE={}\"\r\nset \"PIP_CACHE_DIR={}\"\r\nset \"PYTHONPYCACHEPREFIX={}\"\r\nset \"PATH={};%PATH%\"\r\n",
+                    launcher_path(storage, &environment)?,
+                    launcher_path(storage, &storage.config_dir(id, version).join("pip.ini"))?,
+                    launcher_path(storage, &storage.data(id, version).join("cache/pip"))?,
+                    launcher_path(storage, &storage.data(id, version).join("cache/bytecode"))?,
+                    launcher_path(storage, &scripts)?
+                );
+                for (name, args) in [
+                    ("python", ""),
+                    ("python3", ""),
+                    ("pip", "-m pip "),
+                    ("pip3", "-m pip "),
+                ] {
+                    let file = launcher.join(format!("{name}.cmd"));
+                    let content = format!(
+                        "{setup}\"{}\" {args}%*\r\nexit /b %errorlevel%\r\n",
+                        launcher_path(storage, &python)?
+                    );
                     layout.commands.push((format!("{name}.cmd"), file.clone()));
                     layout.files.push((file, content));
                 }

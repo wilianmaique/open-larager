@@ -240,6 +240,13 @@ export function ServiceDrawer({ id, onClose }: { id: ServiceId; onClose: () => v
           <section className="drawer-section">
             <p>{t('terminalToolHelp')}</p>
             {id === 'nodejs' && <p>{t('nodeNpmHelp')}</p>}
+            {id === 'python' && (
+              <>
+                <p>{t('pythonPipHelp')}</p>
+                <p>{t('pythonVenvHelp')}</p>
+                <code>python -m venv .venv</code>
+              </>
+            )}
             {id === 'composer' && (
               <>
                 <p>

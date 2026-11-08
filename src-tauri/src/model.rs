@@ -14,6 +14,7 @@ pub enum ServiceId {
     Mailpit,
     Caddy,
     Nodejs,
+    Python,
     Composer,
     Notepadpp,
 }
@@ -32,7 +33,7 @@ pub struct ServiceDefinition {
 }
 
 impl ServiceId {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Php,
         Self::Apache,
         Self::Mysql,
@@ -42,6 +43,7 @@ impl ServiceId {
         Self::Mailpit,
         Self::Caddy,
         Self::Nodejs,
+        Self::Python,
         Self::Composer,
         Self::Notepadpp,
     ];
@@ -56,6 +58,7 @@ impl ServiceId {
             Self::Mailpit => "mailpit",
             Self::Caddy => "caddy",
             Self::Nodejs => "nodejs",
+            Self::Python => "python",
             Self::Composer => "composer",
             Self::Notepadpp => "notepadpp",
         }

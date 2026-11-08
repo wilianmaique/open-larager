@@ -152,6 +152,11 @@ pub(crate) fn prepare(storage: &Storage, current: &Settings) -> Result<ResetPlan
                     storage.config_dir(id, &install.version).join("npmrc"),
                     "# Open Larager defaults.\n".into(),
                 ));
+            } else if id == ServiceId::Python {
+                writes.push((
+                    storage.config_dir(id, &install.version).join("pip.ini"),
+                    "# Open Larager defaults.\n".into(),
+                ));
             }
         }
     }
@@ -160,7 +165,12 @@ pub(crate) fn prepare(storage: &Storage, current: &Settings) -> Result<ResetPlan
     }
     writes.extend(sites::files(storage, &settings)?);
     // Preserve working adapters for pre-existing PATH entries we do not own.
-    for id in [ServiceId::Php, ServiceId::Nodejs, ServiceId::Composer] {
+    for id in [
+        ServiceId::Php,
+        ServiceId::Nodejs,
+        ServiceId::Python,
+        ServiceId::Composer,
+    ] {
         if settings.services[&id].active_version.is_some()
             && id
                 .definition()

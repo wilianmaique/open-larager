@@ -122,6 +122,27 @@
       "node_modules/npm/bin/npx-cli.js"
     ]
   },
+  "python": {
+    "name": "Python",
+    "category": "runtime",
+    "mark": "Py",
+    "color": "#3776ab",
+    "daemon": false,
+    "ports": [],
+    "executable": "python.exe",
+    "cli": "python.exe",
+    "configName": null,
+    "dependencies": [],
+    "requiredFiles": [
+      "python.exe",
+      "pythonw.exe",
+      "Lib/venv/__init__.py",
+      "Lib/ensurepip/__init__.py",
+      "Lib/ssl.py",
+      "Lib/sqlite3/__init__.py",
+      "Lib/tkinter/__init__.py"
+    ]
+  },
   "notepadpp": {
     "name": "Notepad++",
     "category": "tools",

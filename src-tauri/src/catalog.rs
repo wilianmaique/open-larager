@@ -50,6 +50,7 @@ pub fn validate_download_url(url: &str) -> Result<()> {
         "objects.githubusercontent.com",
         "nodejs.org",
         "getcomposer.org",
+        "www.python.org",
     ];
     if url.scheme() != "https"
         || !url.username().is_empty()

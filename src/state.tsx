@@ -204,6 +204,7 @@ export const descriptionKeys: Record<ServiceId, Key> = {
   mailpit: 'descriptionMailpit',
   caddy: 'descriptionCaddy',
   nodejs: 'descriptionNodejs',
+  python: 'descriptionPython',
   composer: 'descriptionComposer',
   notepadpp: 'descriptionNotepadpp',
 };

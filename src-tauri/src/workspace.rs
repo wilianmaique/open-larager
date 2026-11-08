@@ -658,11 +658,12 @@ fn rebase(
         let path = safe_join(&storage.root, &stamp.path)?;
         if stamp.path == Path::new("settings.json") {
             atomic_json(&path, settings)?;
-        } else if stamp.path.starts_with("config")
+        } else if (stamp.path.starts_with("config")
             && !stamp.path.starts_with("config/path")
             && (!stamp.path.starts_with("config/notepadpp/profile")
                 || stamp.path == Path::new("config/notepadpp/profile/config.xml")
-                || stamp.path == Path::new("config/notepadpp/profile/session.xml"))
+                || stamp.path == Path::new("config/notepadpp/profile/session.xml")))
+            || crate::python::is_managed_config(storage, &stamp.path)
         {
             let bytes = fs::read(&path).at(Op::Read, &path)?;
             // Config files are text, but preserve unknown binary assets verbatim.

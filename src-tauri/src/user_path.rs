@@ -787,6 +787,12 @@ mod tests {
             }
             storage.prepare(id, version).unwrap();
             toolchain::prepare(storage, id, version).unwrap();
+            if id == ServiceId::Python {
+                let python =
+                    crate::python::environment(storage, version).join("Scripts/python.exe");
+                fs::create_dir_all(python.parent().unwrap()).unwrap();
+                fs::write(python, b"fixture; never executed").unwrap();
+            }
             settings.services.get_mut(&id).unwrap().installations.push(
                 crate::model::Installation {
                     version: (*version).into(),
@@ -818,10 +824,16 @@ mod tests {
             ServiceId::Composer,
             &["2.10.0", "2.9.0"],
         );
+        install_tool(
+            &storage,
+            &mut previous,
+            ServiceId::Python,
+            &["3.15.2", "3.14.10"],
+        );
         let fake = Fake::new("C:\\External;;%SystemRoot%\\System32", true);
         let original = fake.read().unwrap();
         let mut first = previous.clone();
-        for id in [ServiceId::Nodejs, ServiceId::Composer] {
+        for id in [ServiceId::Nodejs, ServiceId::Python, ServiceId::Composer] {
             first.services.get_mut(&id).unwrap().add_to_path = true;
         }
         first.revision += 1;
@@ -836,6 +848,11 @@ mod tests {
         assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
         let npm = storage.root.join("config/cli/nodejs/npm.cmd");
         let composer = storage.root.join("config/cli/composer/composer.cmd");
+        let python = storage.root.join("config/cli/python/python.cmd");
+        let content = fs::read_to_string(&python).unwrap();
+        assert!(content.is_ascii());
+        assert!(content.contains("data\\python\\3.15.2\\environment\\Scripts\\python.exe"));
+        assert!(content.contains("config\\python\\3.15.2\\pip.ini"));
         assert!(
             fs::read_to_string(&npm)
                 .unwrap()
@@ -858,6 +875,7 @@ mod tests {
             (ServiceId::Nodejs, "22.0.0"),
             (ServiceId::Php, "8.4.0"),
             (ServiceId::Composer, "2.9.0"),
+            (ServiceId::Python, "3.14.10"),
         ] {
             second.services.get_mut(&id).unwrap().active_version = Some(version.into());
         }
@@ -871,9 +889,11 @@ mod tests {
         let content = fs::read_to_string(&composer).unwrap();
         assert!(content.contains("packages\\php\\8.4.0\\php.exe"));
         assert!(content.contains("packages\\composer\\2.9.0\\composer.phar"));
+        let content = fs::read_to_string(&python).unwrap();
+        assert!(content.contains("data\\python\\3.14.10\\environment\\Scripts\\python.exe"));
         assert!(!fake.read().unwrap().unwrap().text.contains("24.0.0"));
         let mut removed = second.clone();
-        for id in [ServiceId::Nodejs, ServiceId::Composer] {
+        for id in [ServiceId::Nodejs, ServiceId::Python, ServiceId::Composer] {
             removed.services.get_mut(&id).unwrap().active_version = None;
         }
         removed.revision += 1;
