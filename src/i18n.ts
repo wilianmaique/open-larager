@@ -292,6 +292,9 @@ export const en = {
   edit: 'Edit',
   open: 'Open',
   applyHosts: 'Apply hosts',
+  openHostsEditor: 'Open hosts in editor',
+  openHostsEditorHelp:
+    'Open the Windows hosts file in your default text editor as administrator to save changes.',
   hostsSynced: 'Hosts are in sync',
   hostsPending: 'Hosts need to be applied',
   hostsDescription:
@@ -745,6 +748,9 @@ const pt: Dictionary = {
   edit: 'Editar',
   open: 'Abrir',
   applyHosts: 'Aplicar hosts',
+  openHostsEditor: 'Abrir hosts no editor',
+  openHostsEditorHelp:
+    'Abrir o arquivo hosts do Windows no seu editor de texto padrão como administrador para salvar alterações.',
   hostsSynced: 'Hosts sincronizados',
   hostsPending: 'Aplique as alterações nos hosts',
   hostsDescription:
@@ -1201,6 +1207,9 @@ const es: Dictionary = {
   edit: 'Editar',
   open: 'Abrir',
   applyHosts: 'Aplicar hosts',
+  openHostsEditor: 'Abrir hosts en el editor',
+  openHostsEditorHelp:
+    'Abrir el archivo hosts de Windows en tu editor de texto predeterminado como administrador para guardar los cambios.',
   hostsSynced: 'Hosts sincronizados',
   hostsPending: 'Aplica los cambios en hosts',
   hostsDescription:
@@ -1624,6 +1633,8 @@ const zh: Dictionary = {
   edit: '编辑',
   open: '打开',
   applyHosts: '应用 hosts',
+  openHostsEditor: '在编辑器中打开 hosts',
+  openHostsEditorHelp: '以管理员身份使用默认文本编辑器打开 Windows hosts 文件，以便保存更改。',
   hostsSynced: 'Hosts 已同步',
   hostsPending: 'Hosts 更改待应用',
   hostsDescription: '仅修改 Open Larager 管理的区块。应用时 Windows 会请求管理员权限。',
@@ -2059,6 +2070,9 @@ const hi: Dictionary = {
   edit: 'संपादित करें',
   open: 'खोलें',
   applyHosts: 'Hosts लागू करें',
+  openHostsEditor: 'Hosts को एडिटर में खोलें',
+  openHostsEditorHelp:
+    'बदलाव सहेजने के लिए Windows hosts फ़ाइल को अपने डिफ़ॉल्ट टेक्स्ट एडिटर में व्यवस्थापक के रूप में खोलें।',
   hostsSynced: 'Hosts सिंक हैं',
   hostsPending: 'Hosts के बदलाव लागू करें',
   hostsDescription:

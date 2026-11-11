@@ -80,7 +80,7 @@ pub fn command(executable: impl AsRef<std::ffi::OsStr>) -> Command {
 }
 
 /// Relaunch with the same user's filtered token before opening storage. The hosts
-/// helper bypasses this path and remains the only elevated operation.
+/// helper bypasses this path; the external hosts editor is elevated separately.
 #[cfg(windows)]
 pub fn relaunch_unelevated() -> Result<bool> {
     use std::os::windows::ffi::OsStrExt;

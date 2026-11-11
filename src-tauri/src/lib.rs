@@ -241,6 +241,12 @@ async fn apply_hosts(engine: State<'_, Arc<Workspace>>) -> Result<()> {
     engine.apply_hosts().await
 }
 #[tauri::command]
+async fn open_hosts_editor() -> Result<()> {
+    tauri::async_runtime::spawn_blocking(hosts::open_in_editor)
+        .await
+        .map_err(|e| error::invalid(e.to_string()))?
+}
+#[tauri::command]
 async fn certificate_action(engine: State<'_, Arc<Workspace>>, action: String) -> Result<String> {
     let engine = engine.engine.read().await;
     engine.certificate_action(&action).await
@@ -439,6 +445,7 @@ pub fn run() {
             save_site_config,
             remove_site,
             apply_hosts,
+            open_hosts_editor,
             certificate_action,
             open_location,
             open_service,

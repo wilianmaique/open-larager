@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Button, Dialog, DialogHeader, Empty, IconButton, ServiceIcon, Status } from './components';
 import { Checkbox, NumberInput, RadioCard, Switch } from './controls';
-import { call } from './api';
+import { call, hostsApi } from './api';
 import { useApp } from './state';
 import type { Site } from './types';
 import { SiteConfigDialog } from './SiteConfigDialog';
@@ -134,13 +134,23 @@ export function Domains() {
               {snapshot.settings.sites.find((s) => s.enabled)?.hostname ?? 'my-site.test'}
             </code>
           </div>
-          <Button
-            disabled={busy || snapshot.hostsSynced}
-            onClick={() => void run(() => call('apply_hosts'), t('hostsApplied'))}
-          >
-            <ShieldCheck size={14} />
-            {t('applyHosts')}
-          </Button>
+          <div className="hosts-actions">
+            <Button
+              disabled={busy || snapshot.hostsSynced}
+              onClick={() => void run(() => call('apply_hosts'), t('hostsApplied'))}
+            >
+              <ShieldCheck size={14} />
+              {t('applyHosts')}
+            </Button>
+            <Button
+              disabled={busy}
+              title={t('openHostsEditorHelp')}
+              onClick={() => void run(hostsApi.openEditor)}
+            >
+              <FileCode2 size={14} />
+              {t('openHostsEditor')}
+            </Button>
+          </div>
         </section>
       </div>
       <section className="domain-list-section">

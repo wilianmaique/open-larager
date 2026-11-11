@@ -78,6 +78,10 @@ export const siteConfigApi = {
   save: (id: string, content: string | null) => call('save_site_config', { id, content }),
 };
 
+export const hostsApi = {
+  openEditor: () => call<void>('open_hosts_editor'),
+};
+
 export const userPathApi = {
   status: (id: ServiceId) => call<PathStatus>('get_path_status', { id }),
   set: (id: ServiceId, enabled: boolean) => call('set_user_path', { id, enabled }),

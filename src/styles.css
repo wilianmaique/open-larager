@@ -1813,6 +1813,11 @@ progress::-webkit-progress-value {
   color: var(--status);
   font-size: 10px;
 }
+.hosts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .domain-list-section {
   margin-top: 30px;
 }

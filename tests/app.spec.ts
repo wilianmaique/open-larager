@@ -395,7 +395,8 @@ async function mockNative(page: Page) {
                 throw new Error('nginx: [emerg] invalid value');
               rules = args.content as string | null;
               state.settings.sites[0].nginxDirectives = rules;
-            } else if (command === 'apply_hosts') state.hostsSynced = true;
+            } else if (command === 'open_hosts_editor') desktopCalls.push({ command, args });
+            else if (command === 'apply_hosts') state.hostsSynced = true;
             else if (command === 'choose_folder') return 'C:\\Projects\\example\\public';
             else if (command === 'remove_site') {
               state.settings.sites = [];
@@ -1255,6 +1256,10 @@ test('domain creation and explicit hosts synchronization', async ({ page }) => {
   await mockNative(page);
   await page.goto('/');
   await navigate(page, 'Domains & HTTPS');
+  const openHosts = page.getByRole('button', { name: 'Open hosts in editor', exact: true });
+  await expect(page.getByRole('button', { name: 'Apply hosts', exact: true })).toBeDisabled();
+  await openHosts.click();
+  await expect(page.getByText('Hosts are in sync', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Add domain', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Add domain', exact: true });
   await dialog.getByLabel('Hostname', { exact: true }).fill('my-site.test');
@@ -1266,6 +1271,18 @@ test('domain creation and explicit hosts synchronization', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Save domain', exact: true }).click();
   await expect(page.locator('.domain-row')).toContainText('my-site.test');
   await expect(page.getByText('Hosts need to be applied', { exact: true })).toBeVisible();
+  await openHosts.click();
+  await expect(page.getByText('Hosts need to be applied', { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      Reflect.get(window, '__desktopCalls').filter(
+        (call: { command: string }) => call.command === 'open_hosts_editor',
+      ),
+    ),
+  ).toEqual([
+    { command: 'open_hosts_editor', args: {} },
+    { command: 'open_hosts_editor', args: {} },
+  ]);
   await page.getByRole('button', { name: 'Apply hosts', exact: true }).click();
   await expect(page.getByText('Hosts are in sync', { exact: true })).toBeVisible();
 });
