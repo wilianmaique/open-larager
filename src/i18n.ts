@@ -270,6 +270,9 @@ export const en = {
   domainsTitle: 'Give your project a proper address.',
   domainsDescription:
     'Friendly local URLs, trusted HTTPS, and hosts entries you can actually manage.',
+  subdomainTipTitle: 'Using subdomains?',
+  subdomainTip:
+    'To use auth.my-site.test, add that address as another domain. If it belongs to the same project as my-site.test, use the same public folder or local server port. Save and click “Apply hosts”. With the services running and the local CA trusted, HTTPS works automatically for the subdomain too.',
   addDomain: 'Add domain',
   editDomain: 'Edit domain',
   noDomains: 'Your next idea lives here.',
@@ -727,6 +730,9 @@ const pt: Dictionary = {
   browseServices: 'Explorar serviços',
   domainsTitle: 'Um endereço de verdade para sua ideia.',
   domainsDescription: 'URLs locais amigáveis, HTTPS confiável e controle simples do arquivo hosts.',
+  subdomainTipTitle: 'Vai usar subdomínios?',
+  subdomainTip:
+    'Para usar auth.meu-site.test, adicione esse endereço como outro domínio. Se for o mesmo projeto de meu-site.test, use a mesma pasta pública ou porta do servidor local. Salve e clique em “Aplicar hosts”. Com os serviços iniciados e a CA local confiável, o HTTPS funciona automaticamente no subdomínio também.',
   addDomain: 'Adicionar domínio',
   editDomain: 'Editar domínio',
   noDomains: 'Sua próxima ideia mora aqui.',
@@ -1185,6 +1191,9 @@ const es: Dictionary = {
   browseServices: 'Explorar servicios',
   domainsTitle: 'Una dirección para tu próxima idea.',
   domainsDescription: 'URLs locales sencillas, HTTPS de confianza y control del archivo hosts.',
+  subdomainTipTitle: '¿Vas a usar subdominios?',
+  subdomainTip:
+    'Para usar auth.mi-sitio.test, añade esa dirección como otro dominio. Si pertenece al mismo proyecto que mi-sitio.test, usa la misma carpeta pública o puerto del servidor local. Guarda y haz clic en “Aplicar hosts”. Con los servicios iniciados y la CA local de confianza, HTTPS también funciona automáticamente en el subdominio.',
   addDomain: 'Añadir dominio',
   editDomain: 'Editar dominio',
   noDomains: 'Tu próxima idea vive aquí.',
@@ -1613,6 +1622,9 @@ const zh: Dictionary = {
   browseServices: '浏览服务',
   domainsTitle: '给项目一个专属地址。',
   domainsDescription: '易用的本地网址、可信的 HTTPS，以及简单的 hosts 管理。',
+  subdomainTipTitle: '需要使用子域名？',
+  subdomainTip:
+    '要使用 auth.my-site.test，请将此地址作为另一个域名添加。如果它与 my-site.test 属于同一个项目，请选择相同的公开目录或本地服务器端口。保存后，点击“应用 hosts”。服务运行且本地 CA 已受信任后，子域名也会自动启用 HTTPS。',
   addDomain: '添加域名',
   editDomain: '编辑域名',
   noDomains: '下一个创意从这里开始。',
@@ -2049,6 +2061,9 @@ const hi: Dictionary = {
   browseServices: 'सेवाएँ देखें',
   domainsTitle: 'अपने प्रोजेक्ट को एक पता दें।',
   domainsDescription: 'सरल स्थानीय URL, भरोसेमंद HTTPS और hosts फ़ाइल का आसान प्रबंधन।',
+  subdomainTipTitle: 'सबडोमेन इस्तेमाल करना चाहते हैं?',
+  subdomainTip:
+    'auth.my-site.test इस्तेमाल करने के लिए इस पते को एक और डोमेन के रूप में जोड़ें। अगर यह my-site.test वाले प्रोजेक्ट का ही हिस्सा है, तो वही public फ़ोल्डर या स्थानीय सर्वर का पोर्ट चुनें। सहेजें और “Hosts लागू करें” पर क्लिक करें। सेवाएँ चालू होने और स्थानीय CA विश्वसनीय होने पर सबडोमेन पर भी HTTPS अपने आप काम करता है।',
   addDomain: 'डोमेन जोड़ें',
   editDomain: 'डोमेन संपादित करें',
   noDomains: 'अगला विचार यहीं से शुरू होगा।',

@@ -161,6 +161,13 @@ export function Domains() {
           </h2>
           <span className="muted small">.test / HTTPS</span>
         </div>
+        <aside className="info-strip subdomain-hint" aria-labelledby="subdomain-tip-title">
+          <Info size={16} aria-hidden="true" />
+          <div>
+            <h3 id="subdomain-tip-title">{t('subdomainTipTitle')}</h3>
+            <p>{t('subdomainTip')}</p>
+          </div>
+        </aside>
         <div className="domain-panel">
           {snapshot.settings.sites.length === 0 ? (
             <Empty

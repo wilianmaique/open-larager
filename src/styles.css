@@ -1925,6 +1925,23 @@ progress::-webkit-progress-value {
   border-radius: 7px;
   background: var(--hover);
 }
+.subdomain-hint {
+  align-items: flex-start;
+  margin: 0 0 16px;
+}
+.subdomain-hint > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.subdomain-hint h3 {
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: var(--text);
+}
+.subdomain-hint p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
 .input-prefix {
   display: flex;
   align-items: center;
